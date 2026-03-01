@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5000 -H 0.0.0.0",
+    "dev": "next dev -p 5000 -H 0.0.0.0 --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -15,6 +15,7 @@
     "drizzle-orm": "^0.45.1",
     "next": "16.1.6",
     "pg": "^8.19.0",
+    "postcss-import": "^16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.6"
