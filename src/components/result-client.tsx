@@ -174,7 +174,7 @@ export function ResultClient() {
               <span className="font-medium">性別:</span> {data.gender}
             </p>
             <p>
-              <span className="font-medium">プール長:</span> {COURSE_LABELS[data.course]}
+              <span className="font-medium">標準記録のプール長:</span> {COURSE_LABELS[data.course]}
             </p>
           </div>
 
@@ -193,7 +193,7 @@ export function ResultClient() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <h3 className="text-base font-semibold">{meet.meet_name}</h3>
                             <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                              プール長: {COURSE_LABELS[meet.meet_course]}
+                              標準記録のプール長: {COURSE_LABELS[meet.meet_course]}
                             </span>
                           </div>
                           {meet.meet_metadata ? (

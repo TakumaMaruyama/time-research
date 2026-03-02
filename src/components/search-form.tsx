@@ -188,7 +188,7 @@ export function SearchForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">プール長</label>
+        <label className="mb-1 block text-sm font-medium">標準記録のプール長</label>
         <select
           value={values.course}
           onChange={(event) => setField("course", event.target.value as FormValues["course"])}
@@ -239,7 +239,7 @@ export function SearchForm() {
               >
                 <p className="text-sm font-medium">
                   選手名: {item.playerName === "" ? "未入力" : item.playerName} / {GENDER_LABELS[item.gender]} /{" "}
-                  {item.birthDate} / プール長: {COURSE_LABELS[item.course]} / 年度:{" "}
+                  {item.birthDate} / 標準記録のプール長: {COURSE_LABELS[item.course]} / 年度:{" "}
                   {item.season === "" ? "最新年度" : item.season}
                 </p>
                 <p className="mt-1 text-xs text-zinc-600">
