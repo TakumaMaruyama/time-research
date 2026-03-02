@@ -4,14 +4,17 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { parseIsoDateOnly } from "@/lib/date";
-import { COURSES, GENDERS, type Course } from "@/lib/domain";
+import { COURSES, GENDERS } from "@/lib/domain";
+import {
+  readLastSearchInput,
+  readSearchHistory,
+  type SearchHistoryItem,
+  type StoredSearchInput,
+  upsertSearchHistory,
+  writeLastSearchInput,
+} from "@/lib/search-history";
 
-type FormValues = {
-  gender: "M" | "F";
-  birthDate: string;
-  course: Course;
-  season: string;
-};
+type FormValues = StoredSearchInput;
 
 type FormErrors = Partial<Record<keyof FormValues, string>>;
 
@@ -45,14 +48,51 @@ function validate(values: FormValues): FormErrors {
   return errors;
 }
 
+function buildSearchQuery(values: FormValues): URLSearchParams {
+  const query = new URLSearchParams({
+    gender: values.gender,
+    birthDate: values.birthDate,
+    course: values.course,
+  });
+
+  if (values.season.trim() !== "") {
+    query.set("season", values.season.trim());
+  }
+
+  return query;
+}
+
+function formatSearchedAt(isoString: string): string {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
 export function SearchForm() {
   const router = useRouter();
-  const [values, setValues] = useState<FormValues>({
-    gender: "M",
-    birthDate: "",
-    course: "SCM",
-    season: "",
+  const [values, setValues] = useState<FormValues>(() => {
+    const loaded = readLastSearchInput();
+    if (loaded) {
+      return loaded;
+    }
+    return {
+      gender: "M",
+      birthDate: "",
+      course: "SCM",
+      season: "",
+    };
   });
+  const [history, setHistory] = useState<SearchHistoryItem[]>(() => readSearchHistory());
   const [errors, setErrors] = useState<FormErrors>({});
 
   const hasErrors = useMemo(() => Object.keys(errors).length > 0, [errors]);
@@ -61,6 +101,29 @@ export function SearchForm() {
     const next = { ...values, [key]: value };
     setValues(next);
     setErrors(validate(next));
+  };
+
+  const pushToResult = (input: FormValues) => {
+    router.push(`/result?${buildSearchQuery(input).toString()}`);
+  };
+
+  const persistSearchInput = (input: FormValues) => {
+    writeLastSearchInput(input);
+    setHistory(upsertSearchHistory(input));
+  };
+
+  const onHistoryClick = (item: SearchHistoryItem) => {
+    const input: FormValues = {
+      gender: item.gender,
+      birthDate: item.birthDate,
+      course: item.course,
+      season: item.season,
+    };
+
+    setValues(input);
+    setErrors({});
+    persistSearchInput(input);
+    pushToResult(input);
   };
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -72,17 +135,8 @@ export function SearchForm() {
       return;
     }
 
-    const query = new URLSearchParams({
-      gender: values.gender,
-      birthDate: values.birthDate,
-      course: values.course,
-    });
-
-    if (values.season.trim() !== "") {
-      query.set("season", values.season.trim());
-    }
-
-    router.push(`/result?${query.toString()}`);
+    persistSearchInput(values);
+    pushToResult(values);
   };
 
   return (
@@ -138,7 +192,7 @@ export function SearchForm() {
           placeholder="例: 2026"
           className="w-full rounded border border-zinc-300 px-3 py-2"
         />
-        <p className="mt-1 text-xs text-zinc-600">未入力の場合は今年度を検索します。</p>
+        <p className="mt-1 text-xs text-zinc-600">未入力の場合は最新年度の記録を検索します。</p>
         {errors.season ? <p className="mt-1 text-sm text-red-600">{errors.season}</p> : null}
       </div>
 
@@ -150,6 +204,32 @@ export function SearchForm() {
       </button>
 
       {hasErrors ? <p className="text-sm text-red-700">入力内容を確認してください。</p> : null}
+
+      <section className="space-y-2 border-t border-zinc-200 pt-4">
+        <h2 className="text-sm font-semibold">検索履歴（最新10件）</h2>
+        {history.length === 0 ? (
+          <p className="text-xs text-zinc-600">履歴はありません。</p>
+        ) : (
+          <div className="space-y-2">
+            {history.map((item, index) => (
+              <button
+                key={`${item.gender}-${item.birthDate}-${item.course}-${item.season}-${item.searchedAt}-${index}`}
+                type="button"
+                onClick={() => onHistoryClick(item)}
+                className="w-full rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-left hover:bg-zinc-100"
+              >
+                <p className="text-sm font-medium">
+                  {GENDER_LABELS[item.gender]} / {item.birthDate} / {COURSE_LABELS[item.course]} / 年度:{" "}
+                  {item.season === "" ? "最新年度" : item.season}
+                </p>
+                <p className="mt-1 text-xs text-zinc-600">
+                  検索日時: {formatSearchedAt(item.searchedAt)}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </form>
   );
 }

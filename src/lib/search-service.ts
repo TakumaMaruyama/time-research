@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/client";
@@ -67,6 +67,44 @@ function resolveSearchCourses(course: Course): Course[] {
   return [course, "ANY"];
 }
 
+async function resolveSearchSeason(params: {
+  requestedSeason: number | null;
+  fallbackDate: ReturnType<typeof getCurrentDatePartsInTimeZone>;
+  courses: Course[];
+  gender: Gender;
+  age: number;
+}): Promise<number> {
+  if (params.requestedSeason !== null) {
+    return params.requestedSeason;
+  }
+
+  const latestRows = await db
+    .select({
+      latestSeason: sql<number | null>`max(${meets.season})`,
+    })
+    .from(standards)
+    .innerJoin(meets, eq(standards.meetId, meets.id))
+    .where(
+      and(
+        inArray(meets.course, params.courses),
+        eq(standards.gender, params.gender),
+        lte(standards.ageMin, params.age),
+        gte(standards.ageMax, params.age),
+        inArray(meets.level, [...STANDARD_LEVELS]),
+      ),
+    );
+
+  const latestSeasonRaw = latestRows[0]?.latestSeason ?? null;
+  const latestSeason =
+    latestSeasonRaw === null ? null : Number.parseInt(String(latestSeasonRaw), 10);
+
+  if (latestSeason !== null && Number.isFinite(latestSeason)) {
+    return latestSeason;
+  }
+
+  return resolveSeason(null, params.fallbackDate);
+}
+
 export async function searchStandards(input: SearchRequest): Promise<SearchResponse> {
   const birthDate = parseIsoDateOnly(input.birthDate);
   if (!birthDate) {
@@ -75,8 +113,14 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
 
   const currentDate = getCurrentDatePartsInTimeZone("Asia/Tokyo");
   const age = calculateFullAge(birthDate, currentDate);
-  const season = resolveSeason(input.season, currentDate);
   const courses = resolveSearchCourses(input.course);
+  const season = await resolveSearchSeason({
+    requestedSeason: input.season,
+    fallbackDate: currentDate,
+    courses,
+    gender: input.gender,
+    age,
+  });
 
   const found = await db
     .select({

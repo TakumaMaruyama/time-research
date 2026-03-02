@@ -5,6 +5,14 @@ type ParsedEventCode = {
   distance: number;
 };
 
+const STROKE_LABELS: Record<ParsedEventCode["stroke"], string> = {
+  FR: "自由形",
+  BK: "背泳ぎ",
+  BR: "平泳ぎ",
+  FL: "バタフライ",
+  IM: "個人メドレー",
+};
+
 const STROKE_ORDER: Record<ParsedEventCode["stroke"], number> = {
   FR: 0,
   BK: 1,
@@ -48,4 +56,13 @@ export function compareEventCode(a: string, b: string): number {
   }
 
   return a.localeCompare(b);
+}
+
+export function formatEventCodeLabel(eventCode: string): string {
+  const parsed = parseEventCode(eventCode);
+  if (!parsed) {
+    return eventCode;
+  }
+
+  return `${parsed.distance}m${STROKE_LABELS[parsed.stroke]}`;
 }

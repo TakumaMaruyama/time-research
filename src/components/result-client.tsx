@@ -12,6 +12,7 @@ import {
   type Course,
   type StandardLevel,
 } from "@/lib/domain";
+import { formatEventCodeLabel } from "@/lib/event";
 
 type SearchMeetResult = {
   meet_id: string;
@@ -208,7 +209,7 @@ export function ResultClient() {
                                     key={`${meet.meet_id}-${row.event_code}-${index}`}
                                     className="border-b border-zinc-100"
                                   >
-                                    <td className="py-2 pr-3">{row.event_code}</td>
+                                    <td className="py-2 pr-3">{formatEventCodeLabel(row.event_code)}</td>
                                     <td className="py-2">{row.time}</td>
                                   </tr>
                                 ))}
