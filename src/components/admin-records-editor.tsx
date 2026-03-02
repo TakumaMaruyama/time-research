@@ -17,6 +17,8 @@ const ADMIN_TOKEN_HEADER = "x-admin-token";
 type MeetSummary = {
   id: string;
   name: string;
+  course: Course;
+  meet_date: string | null;
   metadata: Record<string, unknown> | null;
   row_count: number;
   updated_at: string;
@@ -38,6 +40,7 @@ type MeetDetail = {
   season: number;
   course: Course;
   name: string;
+  meet_date: string | null;
   metadata: Record<string, unknown> | null;
   updated_at: string;
 };
@@ -500,6 +503,8 @@ export function AdminRecordsEditor({
                   }`}
                 >
                   <p className="font-semibold">{meet.name}</p>
+                  <p>標準記録のプール長: {COURSE_LABELS[meet.course]}</p>
+                  <p>日付: {meet.meet_date ?? "未設定"}</p>
                   <p>件数: {meet.row_count}</p>
                 </button>
               ))}
@@ -517,6 +522,7 @@ export function AdminRecordsEditor({
                 <p className="text-xs text-zinc-600">
                   {LEVEL_LABELS[selectedMeet.level]} / {selectedMeet.season} / {COURSE_LABELS[selectedMeet.course]}
                 </p>
+                <p className="text-xs text-zinc-600">大会日付: {selectedMeet.meet_date ?? "未設定"}</p>
                 {selectedMeet.metadata ? (
                   <p className="mt-1 break-all text-xs text-zinc-600">
                     metadata: {JSON.stringify(selectedMeet.metadata)}

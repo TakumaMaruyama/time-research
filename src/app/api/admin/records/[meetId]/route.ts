@@ -20,6 +20,7 @@ async function findMeet(meetId: string) {
       season: meets.season,
       course: meets.course,
       name: meets.name,
+      meetDate: meets.meetDate,
       metadata: meets.metadataJson,
       updatedAt: meets.updatedAt,
     })
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         season: meet.season,
         course: meet.course,
         name: meet.name,
+        meet_date: meet.meetDate,
         metadata: (meet.metadata ?? null) as Record<string, unknown> | null,
         updated_at: meet.updatedAt.toISOString(),
       },

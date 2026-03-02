@@ -1,4 +1,5 @@
 import {
+  date,
   index,
   integer,
   jsonb,
@@ -38,6 +39,7 @@ export const meets = pgTable(
     season: integer("season").notNull(),
     course: courseEnum("course").notNull(),
     name: text("name").notNull(),
+    meetDate: date("meet_date", { mode: "string" }),
     metadataJson: jsonb("metadata_json"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

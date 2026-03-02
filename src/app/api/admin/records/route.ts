@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
       .select({
         id: meets.id,
         name: meets.name,
+        course: meets.course,
+        meetDate: meets.meetDate,
         metadata: meets.metadataJson,
         updatedAt: meets.updatedAt,
         rowCount: count(standards.id),
@@ -30,19 +32,23 @@ export async function GET(request: NextRequest) {
       .from(meets)
       .leftJoin(standards, eq(standards.meetId, meets.id))
       .where(
-        and(
-          eq(meets.level, filter.level),
-          eq(meets.season, filter.season),
-          eq(meets.course, filter.course),
-        ),
+        filter.course === "ANY"
+          ? and(eq(meets.level, filter.level), eq(meets.season, filter.season))
+          : and(
+              eq(meets.level, filter.level),
+              eq(meets.season, filter.season),
+              eq(meets.course, filter.course),
+            ),
       )
       .groupBy(meets.id)
-      .orderBy(asc(meets.name));
+      .orderBy(asc(meets.name), asc(meets.course));
 
     return NextResponse.json({
       meets: rows.map((row) => ({
         id: row.id,
         name: row.name,
+        course: row.course,
+        meet_date: row.meetDate,
         metadata: (row.metadata ?? null) as Record<string, unknown> | null,
         updated_at: row.updatedAt.toISOString(),
         row_count: Number(row.rowCount),

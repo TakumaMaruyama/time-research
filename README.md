@@ -57,12 +57,14 @@ npm run dev
   "season": 2026,
   "course": "SCM",
   "meetName": "2026 県春季記録会",
+  "meetDate": "2026-05-03",
   "meetMetadata": { "category": "県予選" },
   "jsonText": "{ ... }"
 }
 ```
 
 - `course` は `SCM` / `LCM` / `ANY`（どちらでも良い）
+- `meetDate` は任意（`YYYY-MM-DD`）
 
 ### 検索APIレスポンス（抜粋）
 

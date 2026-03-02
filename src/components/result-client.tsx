@@ -18,6 +18,7 @@ type SearchMeetResult = {
   meet_id: string;
   meet_name: string;
   meet_course: Course;
+  meet_date: string | null;
   meet_metadata: Record<string, unknown> | null;
   items: Array<{ event_code: string; time: string }>;
 };
@@ -196,6 +197,9 @@ export function ResultClient() {
                               標準記録のプール長: {COURSE_LABELS[meet.meet_course]}
                             </span>
                           </div>
+                          <p className="mb-2 mt-1 text-xs text-zinc-600">
+                            大会日付: {meet.meet_date ?? "未設定"}
+                          </p>
                           {meet.meet_metadata ? (
                             <p className="mb-3 mt-1 break-all text-xs text-zinc-600">
                               metadata: {JSON.stringify(meet.meet_metadata)}

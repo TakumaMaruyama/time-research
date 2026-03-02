@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AdminRecordsEditor } from "@/components/admin-records-editor";
+import { parseIsoDateOnly } from "@/lib/date";
 import { COURSES, STANDARD_LEVELS, type Course, type StandardLevel } from "@/lib/domain";
 
 const ADMIN_TOKEN_STORAGE_KEY = "admin_auth_token";
@@ -16,6 +17,7 @@ type PreviewResponse = {
     season: number;
     course: Course;
     name: string;
+    meet_date: string | null;
     metadata: Record<string, unknown> | null;
     exists: boolean;
   };
@@ -98,6 +100,7 @@ type AdminImportFormDraft = {
   season: string;
   course: Course;
   meetName: string;
+  meetDate: string;
   meetMetadataText: string;
   jsonText: string;
 };
@@ -130,6 +133,7 @@ function readAdminImportDraft(): AdminImportFormDraft | null {
       season: typeof parsed.season === "string" ? parsed.season : String(new Date().getFullYear()),
       course: parsed.course,
       meetName: typeof parsed.meetName === "string" ? parsed.meetName : "サンプル大会",
+      meetDate: typeof parsed.meetDate === "string" ? parsed.meetDate : "",
       meetMetadataText: typeof parsed.meetMetadataText === "string" ? parsed.meetMetadataText : "",
       jsonText: typeof parsed.jsonText === "string" ? parsed.jsonText : "",
     };
@@ -185,6 +189,7 @@ export function AdminImportClient() {
   const [season, setSeason] = useState(String(new Date().getFullYear()));
   const [course, setCourse] = useState<Course>("SCM");
   const [meetName, setMeetName] = useState("サンプル大会");
+  const [meetDate, setMeetDate] = useState("");
   const [meetMetadataText, setMeetMetadataText] = useState("");
   const [jsonText, setJsonText] = useState("");
 
@@ -241,6 +246,7 @@ export function AdminImportClient() {
     setSeason(draft.season);
     setCourse(draft.course);
     setMeetName(draft.meetName);
+    setMeetDate(draft.meetDate);
     setMeetMetadataText(draft.meetMetadataText);
     setJsonText(draft.jsonText);
   }, []);
@@ -251,10 +257,11 @@ export function AdminImportClient() {
       season,
       course,
       meetName,
+      meetDate,
       meetMetadataText,
       jsonText,
     });
-  }, [level, season, course, meetName, meetMetadataText, jsonText]);
+  }, [level, season, course, meetName, meetDate, meetMetadataText, jsonText]);
 
   const seasonError = useMemo(() => {
     const seasonNumber = Number.parseInt(season, 10);
@@ -270,6 +277,17 @@ export function AdminImportClient() {
     }
     return null;
   }, [meetName]);
+
+  const meetDateError = useMemo(() => {
+    const trimmed = meetDate.trim();
+    if (trimmed === "") {
+      return null;
+    }
+    if (!parseIsoDateOnly(trimmed)) {
+      return "大会日付は YYYY-MM-DD 形式で入力してください。";
+    }
+    return null;
+  }, [meetDate]);
 
   const metadataInput = useMemo(() => parseMetadataText(meetMetadataText), [meetMetadataText]);
 
@@ -320,6 +338,11 @@ export function AdminImportClient() {
       return;
     }
 
+    if (meetDateError) {
+      setActionError(meetDateError);
+      return;
+    }
+
     if (jsonText.trim() === "") {
       setActionError("JSONを入力してください。");
       return;
@@ -345,6 +368,7 @@ export function AdminImportClient() {
           season: Number.parseInt(season, 10),
           course,
           meetName: meetName.trim(),
+          meetDate: meetDate.trim() === "" ? null : meetDate.trim(),
           meetMetadata: metadataInput.value,
           jsonText,
         }),
@@ -466,6 +490,17 @@ export function AdminImportClient() {
         </div>
 
         <div>
+          <label className="mb-1 block text-sm font-medium">大会日付（任意）</label>
+          <input
+            type="date"
+            value={meetDate}
+            onChange={(event) => setMeetDate(event.target.value)}
+            className="w-full rounded border border-zinc-300 px-3 py-2"
+          />
+          {meetDateError ? <p className="mt-1 text-xs text-red-700">{meetDateError}</p> : null}
+        </div>
+
+        <div>
           <label className="mb-1 block text-sm font-medium">metadata(JSON, 任意)</label>
           <textarea
             value={meetMetadataText}
@@ -513,6 +548,9 @@ export function AdminImportClient() {
           <p className="text-sm">
             対象大会: {preview.meet.name}（{LEVEL_LABELS[preview.meet.level]} / {preview.meet.season} /
             {COURSE_LABELS[preview.meet.course]}）
+          </p>
+          <p className="text-sm">
+            大会日付: {preview.meet.meet_date ?? "未設定"}
           </p>
           <p className="text-sm">大会の状態: {preview.meet.exists ? "既存大会を更新" : "新規大会を作成"}</p>
           <p className="text-sm">

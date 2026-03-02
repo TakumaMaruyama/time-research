@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "@/db/client";
 import { meets, standards } from "@/db/schema";
+import { parseIsoDateOnly } from "@/lib/date";
 import {
   courseSchema,
   EVENT_CODE_REGEX,
@@ -16,12 +17,19 @@ import { BadRequestError } from "@/lib/errors";
 import { formatTimeMs, parseTimeToMs } from "@/lib/time";
 
 const meetMetadataSchema = z.record(z.string(), z.unknown());
+const meetDateSchema = z
+  .string()
+  .trim()
+  .refine((value) => parseIsoDateOnly(value) !== null, {
+    message: "meetDate must be YYYY-MM-DD.",
+  });
 
 export const adminImportRequestSchema = z.object({
   level: standardLevelSchema,
   season: z.coerce.number().int().min(1900).max(3000),
   course: courseSchema,
   meetName: z.string().trim().min(1, "meetName is required."),
+  meetDate: meetDateSchema.nullable().optional().default(null),
   meetMetadata: meetMetadataSchema.nullable().optional().default(null),
   jsonText: z.string().min(1, "jsonText is required."),
 });
@@ -85,6 +93,7 @@ export type ImportPreviewMeet = {
   season: number;
   course: Course;
   name: string;
+  meet_date: string | null;
   metadata: Record<string, unknown> | null;
   exists: boolean;
 };
@@ -114,6 +123,7 @@ type ExistingRow = {
 
 export type ExistingMeet = {
   id: string;
+  meetDate: string | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -234,6 +244,7 @@ export async function findExistingMeet(
   const rows = await db
     .select({
       id: meets.id,
+      meetDate: meets.meetDate,
       metadata: meets.metadataJson,
     })
     .from(meets)
@@ -254,6 +265,7 @@ export async function findExistingMeet(
 
   return {
     id: found.id,
+    meetDate: found.meetDate,
     metadata: (found.metadata ?? null) as Record<string, unknown> | null,
   };
 }
@@ -302,6 +314,7 @@ export async function buildImportPreview(
 ): Promise<ImportPreviewResult> {
   const parsed = parseImportJson(input);
   const existingMeet = await findExistingMeet(input);
+  const resolvedMeetDate = input.meetDate ?? existingMeet?.meetDate ?? null;
 
   const meet: ImportPreviewMeet = {
     id: existingMeet?.id ?? null,
@@ -309,6 +322,7 @@ export async function buildImportPreview(
     season: input.season,
     course: input.course,
     name: input.meetName,
+    meet_date: resolvedMeetDate,
     metadata: input.meetMetadata,
     exists: Boolean(existingMeet),
   };
