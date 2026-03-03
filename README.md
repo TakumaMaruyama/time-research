@@ -1,7 +1,7 @@
 # 標準記録検索アプリ
 
 Next.js (App Router) + TypeScript + Tailwind + Drizzle + PostgreSQL で作成した、
-全国レベル / 九州レベル / 県レベルの標準記録検索アプリです。
+全国レベル / 九州レベル / 県レベル（鹿児島）の標準記録検索アプリです。
 
 ## 技術スタック
 

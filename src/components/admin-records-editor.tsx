@@ -78,7 +78,7 @@ type Props = {
 const LEVEL_LABELS: Record<StandardLevel, string> = {
   national: "全国レベル",
   kyushu: "九州レベル",
-  kagoshima: "県レベル",
+  kagoshima: "県レベル（鹿児島）",
 };
 
 const GENDER_LABELS: Record<Gender, string> = {

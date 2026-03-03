@@ -64,7 +64,7 @@ type ImportResponse = {
 const LEVEL_LABELS: Record<StandardLevel, string> = {
   national: "全国レベル",
   kyushu: "九州レベル",
-  kagoshima: "県レベル",
+  kagoshima: "県レベル（鹿児島）",
 };
 
 const STATUS_LABELS = {
