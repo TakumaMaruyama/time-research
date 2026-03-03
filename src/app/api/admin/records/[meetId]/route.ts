@@ -16,24 +16,65 @@ type RouteContext = {
   params: Promise<{ meetId: string }>;
 };
 
-async function findMeet(meetId: string) {
-  const rows = await db
-    .select({
-      id: meets.id,
-      level: meets.level,
-      season: meets.season,
-      course: meets.course,
-      name: meets.name,
-      meetDate: meets.meetDate,
-      meetDateEnd: meets.meetEndDate,
-      metadata: meets.metadataJson,
-      updatedAt: meets.updatedAt,
-    })
-    .from(meets)
-    .where(eq(meets.id, meetId))
-    .limit(1);
+function isMissingMeetEndDateColumnError(error: unknown): boolean {
+  const maybeError = error as { code?: string; message?: string };
+  return (
+    maybeError.code === "42703" &&
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("meet_end_date")
+  );
+}
 
-  return rows[0] ?? null;
+async function findMeet(meetId: string) {
+  try {
+    const rows = await db
+      .select({
+        id: meets.id,
+        level: meets.level,
+        season: meets.season,
+        course: meets.course,
+        name: meets.name,
+        meetDate: meets.meetDate,
+        meetDateEnd: meets.meetEndDate,
+        metadata: meets.metadataJson,
+        updatedAt: meets.updatedAt,
+      })
+      .from(meets)
+      .where(eq(meets.id, meetId))
+      .limit(1);
+
+    return rows[0] ?? null;
+  } catch (error) {
+    if (!isMissingMeetEndDateColumnError(error)) {
+      throw error;
+    }
+
+    // Backward compatibility for DBs before migration 0005.
+    const rows = await db
+      .select({
+        id: meets.id,
+        level: meets.level,
+        season: meets.season,
+        course: meets.course,
+        name: meets.name,
+        meetDate: meets.meetDate,
+        metadata: meets.metadataJson,
+        updatedAt: meets.updatedAt,
+      })
+      .from(meets)
+      .where(eq(meets.id, meetId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      ...row,
+      meetDateEnd: null,
+    };
+  }
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -187,47 +228,94 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const input = parseAdminMeetUpdateInput(body);
 
-    const updated = await db
-      .update(meets)
-      .set({
-        season: input.season,
-        ...(input.meet_name !== undefined ? { name: input.meet_name } : {}),
-        ...(input.meet_date !== undefined ? { meetDate: input.meet_date } : {}),
-        ...(input.meet_date_end !== undefined ? { meetEndDate: input.meet_date_end } : {}),
-        ...(input.metadata !== undefined ? { metadataJson: input.metadata } : {}),
-        updatedAt: sql`now()`,
-      })
-      .where(eq(meets.id, meetId))
-      .returning({
-        id: meets.id,
-        level: meets.level,
-        season: meets.season,
-        course: meets.course,
-        name: meets.name,
-        meetDate: meets.meetDate,
-        meetDateEnd: meets.meetEndDate,
-        metadata: meets.metadataJson,
-        updatedAt: meets.updatedAt,
+    try {
+      const updated = await db
+        .update(meets)
+        .set({
+          season: input.season,
+          ...(input.meet_name !== undefined ? { name: input.meet_name } : {}),
+          ...(input.meet_date !== undefined ? { meetDate: input.meet_date } : {}),
+          ...(input.meet_date_end !== undefined ? { meetEndDate: input.meet_date_end } : {}),
+          ...(input.metadata !== undefined ? { metadataJson: input.metadata } : {}),
+          updatedAt: sql`now()`,
+        })
+        .where(eq(meets.id, meetId))
+        .returning({
+          id: meets.id,
+          level: meets.level,
+          season: meets.season,
+          course: meets.course,
+          name: meets.name,
+          meetDate: meets.meetDate,
+          meetDateEnd: meets.meetEndDate,
+          metadata: meets.metadataJson,
+          updatedAt: meets.updatedAt,
+        });
+
+      const row = updated[0];
+      if (!row) {
+        return NextResponse.json({ error: "Meet not found." }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        meet: {
+          id: row.id,
+          level: row.level,
+          season: row.season,
+          course: row.course,
+          name: row.name,
+          meet_date: row.meetDate,
+          meet_date_end: row.meetDateEnd,
+          metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+          updated_at: row.updatedAt.toISOString(),
+        },
       });
+    } catch (error) {
+      if (!isMissingMeetEndDateColumnError(error)) {
+        throw error;
+      }
 
-    const row = updated[0];
-    if (!row) {
-      return NextResponse.json({ error: "Meet not found." }, { status: 404 });
+      // Backward compatibility for DBs before migration 0005.
+      const updated = await db
+        .update(meets)
+        .set({
+          season: input.season,
+          ...(input.meet_name !== undefined ? { name: input.meet_name } : {}),
+          ...(input.meet_date !== undefined ? { meetDate: input.meet_date } : {}),
+          ...(input.metadata !== undefined ? { metadataJson: input.metadata } : {}),
+          updatedAt: sql`now()`,
+        })
+        .where(eq(meets.id, meetId))
+        .returning({
+          id: meets.id,
+          level: meets.level,
+          season: meets.season,
+          course: meets.course,
+          name: meets.name,
+          meetDate: meets.meetDate,
+          metadata: meets.metadataJson,
+          updatedAt: meets.updatedAt,
+        });
+
+      const row = updated[0];
+      if (!row) {
+        return NextResponse.json({ error: "Meet not found." }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        meet: {
+          id: row.id,
+          level: row.level,
+          season: row.season,
+          course: row.course,
+          name: row.name,
+          meet_date: row.meetDate,
+          meet_date_end: null,
+          metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+          updated_at: row.updatedAt.toISOString(),
+        },
+      });
     }
-
-    return NextResponse.json({
-      meet: {
-        id: row.id,
-        level: row.level,
-        season: row.season,
-        course: row.course,
-        name: row.name,
-        meet_date: row.meetDate,
-        meet_date_end: row.meetDateEnd,
-        metadata: (row.metadata ?? null) as Record<string, unknown> | null,
-        updated_at: row.updatedAt.toISOString(),
-      },
-    });
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof BadRequestError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

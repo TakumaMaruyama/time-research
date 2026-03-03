@@ -675,7 +675,6 @@ export function AdminImportClient() {
         key={recordsEditorReloadKey}
         adminToken={adminToken}
         defaultLevel={level}
-        defaultCourse={course}
         onUnauthorized={handleUnauthorized}
       />
     </div>

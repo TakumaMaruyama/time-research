@@ -19,41 +19,89 @@ export async function GET(request: NextRequest) {
       course: request.nextUrl.searchParams.get("course"),
     });
 
-    const rows = await db
-      .select({
-        id: meets.id,
-        name: meets.name,
-        season: meets.season,
-        course: meets.course,
-        meetDate: meets.meetDate,
-        meetDateEnd: meets.meetEndDate,
-        metadata: meets.metadataJson,
-        updatedAt: meets.updatedAt,
-        rowCount: count(standards.id),
-      })
-      .from(meets)
-      .leftJoin(standards, eq(standards.meetId, meets.id))
-      .where(
-        filter.course === "ANY"
-          ? eq(meets.level, filter.level)
-          : and(eq(meets.level, filter.level), eq(meets.course, filter.course)),
-      )
-      .groupBy(meets.id)
-      .orderBy(asc(meets.season), asc(meets.name), asc(meets.course));
+    const whereClause = and(
+      eq(meets.level, filter.level),
+      filter.season === null ? undefined : eq(meets.season, filter.season),
+      filter.course === null || filter.course === "ANY"
+        ? undefined
+        : eq(meets.course, filter.course),
+    );
 
-    return NextResponse.json({
-      meets: rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        season: row.season,
-        course: row.course,
-        meet_date: row.meetDate,
-        meet_date_end: row.meetDateEnd,
-        metadata: (row.metadata ?? null) as Record<string, unknown> | null,
-        updated_at: row.updatedAt.toISOString(),
-        row_count: Number(row.rowCount),
-      })),
-    });
+    try {
+      const rows = await db
+        .select({
+          id: meets.id,
+          name: meets.name,
+          season: meets.season,
+          course: meets.course,
+          meetDate: meets.meetDate,
+          meetDateEnd: meets.meetEndDate,
+          metadata: meets.metadataJson,
+          updatedAt: meets.updatedAt,
+          rowCount: count(standards.id),
+        })
+        .from(meets)
+        .leftJoin(standards, eq(standards.meetId, meets.id))
+        .where(whereClause)
+        .groupBy(meets.id)
+        .orderBy(asc(meets.season), asc(meets.name), asc(meets.course));
+
+      return NextResponse.json({
+        meets: rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          season: row.season,
+          course: row.course,
+          meet_date: row.meetDate,
+          meet_date_end: row.meetDateEnd,
+          metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+          updated_at: row.updatedAt.toISOString(),
+          row_count: Number(row.rowCount),
+        })),
+      });
+    } catch (error) {
+      const maybeError = error as { code?: string; message?: string };
+      const isMissingMeetEndDateColumn =
+        maybeError.code === "42703" &&
+        typeof maybeError.message === "string" &&
+        maybeError.message.includes("meet_end_date");
+
+      if (!isMissingMeetEndDateColumn) {
+        throw error;
+      }
+
+      // Backward compatibility for DBs before migration 0005.
+      const rows = await db
+        .select({
+          id: meets.id,
+          name: meets.name,
+          season: meets.season,
+          course: meets.course,
+          meetDate: meets.meetDate,
+          metadata: meets.metadataJson,
+          updatedAt: meets.updatedAt,
+          rowCount: count(standards.id),
+        })
+        .from(meets)
+        .leftJoin(standards, eq(standards.meetId, meets.id))
+        .where(whereClause)
+        .groupBy(meets.id)
+        .orderBy(asc(meets.season), asc(meets.name), asc(meets.course));
+
+      return NextResponse.json({
+        meets: rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          season: row.season,
+          course: row.course,
+          meet_date: row.meetDate,
+          meet_date_end: null,
+          metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+          updated_at: row.updatedAt.toISOString(),
+          row_count: Number(row.rowCount),
+        })),
+      });
+    }
   } catch (error) {
     if (error instanceof BadRequestError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

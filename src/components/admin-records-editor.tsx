@@ -8,7 +8,6 @@ import {
 } from "@/lib/course-label";
 import { parseIsoDateOnly } from "@/lib/date";
 import {
-  COURSES,
   EVENT_CODE_REGEX,
   GENDERS,
   STANDARD_LEVELS,
@@ -73,7 +72,6 @@ type NewRecord = {
 type Props = {
   adminToken: string | null;
   defaultLevel: StandardLevel;
-  defaultCourse: Course;
   onUnauthorized: () => void;
 };
 
@@ -203,11 +201,9 @@ function parseMetadataForApi(text: string): {
 export function AdminRecordsEditor({
   adminToken,
   defaultLevel,
-  defaultCourse,
   onUnauthorized,
 }: Props) {
   const [level, setLevel] = useState<StandardLevel>(defaultLevel);
-  const [course, setCourse] = useState<Course>(defaultCourse);
 
   const [meets, setMeets] = useState<MeetSummary[]>([]);
   const [selectedMeet, setSelectedMeet] = useState<MeetDetail | null>(null);
@@ -240,7 +236,6 @@ export function AdminRecordsEditor({
     try {
       const params = new URLSearchParams({
         level,
-        course,
       });
 
       const response = await fetch(`/api/admin/records?${params.toString()}`, {
@@ -624,7 +619,7 @@ export function AdminRecordsEditor({
     <section className="space-y-4 rounded border border-zinc-200 bg-white p-6">
       <h2 className="text-lg font-semibold">登録済み記録の閲覧・編集</h2>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">level</label>
           <select
@@ -635,21 +630,6 @@ export function AdminRecordsEditor({
             {STANDARD_LEVELS.map((value) => (
               <option key={value} value={value}>
                 {value} ({LEVEL_LABELS[value]})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">course</label>
-          <select
-            value={course}
-            onChange={(event) => setCourse(event.target.value as Course)}
-            className="w-full rounded border border-zinc-300 px-3 py-2"
-          >
-            {COURSES.map((value) => (
-              <option key={value} value={value}>
-                {COURSE_LABELS[value]}
               </option>
             ))}
           </select>

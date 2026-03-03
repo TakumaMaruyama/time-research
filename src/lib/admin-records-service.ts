@@ -8,7 +8,7 @@ import { parseTimeToMs } from "@/lib/time";
 export const adminRecordsFilterSchema = z.object({
   level: standardLevelSchema,
   season: z.coerce.number().int().min(1900).max(3000).nullable().optional().default(null),
-  course: courseSchema,
+  course: courseSchema.nullable().optional().default(null),
 });
 
 export const adminRecordUpsertSchema = z
