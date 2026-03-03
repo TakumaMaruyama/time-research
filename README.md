@@ -71,7 +71,7 @@ npm run dev
 
 ```json
 {
-  "age": 12,
+  "targetAges": [11, 12, 13],
   "season": 2026,
   "course": "SCM",
   "gender": "M",

@@ -25,8 +25,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={`${geistSans.variable} ${geistMono.variable} bg-zinc-50 text-zinc-900 antialiased`}>
-        {children}
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 text-zinc-900 antialiased`}
+      >
+        <div className="flex min-h-screen flex-col">
+          <div className="flex-1">{children}</div>
+          <footer className="border-t border-zinc-200 px-6 pt-4 pb-12 text-center text-xs text-zinc-500 sm:pb-6">
+            作成者Instagram:{" "}
+            <a
+              href="https://www.instagram.com/mrswim_kagoshima/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-zinc-400 underline-offset-2 transition-colors hover:text-zinc-700"
+            >
+              @mrswim_kagoshima
+            </a>
+          </footer>
+        </div>
       </body>
     </html>
   );

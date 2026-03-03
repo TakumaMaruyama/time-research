@@ -13,7 +13,6 @@ import {
   COURSE_LABELS,
   formatCourseStandardRecordLabel,
 } from "@/lib/course-label";
-import { parseIsoDateOnly } from "@/lib/date";
 import { COURSES, GENDERS } from "@/lib/domain";
 import {
   readLastSearchInput,
@@ -40,10 +39,8 @@ function validate(values: FormValues): FormErrors {
     errors.playerName = "選手名は50文字以内で入力してください。";
   }
 
-  if (!values.birthDate) {
-    errors.birthDate = "生年月日を入力してください。";
-  } else if (!parseIsoDateOnly(values.birthDate)) {
-    errors.birthDate = "YYYY-MM-DD 形式で正しい日付を入力してください。";
+  if (values.targetAges.length === 0) {
+    errors.targetAges = "検索したい年齢を1つ以上選択してください。";
   }
 
   return errors;
@@ -52,13 +49,9 @@ function validate(values: FormValues): FormErrors {
 function buildSearchQuery(values: FormValues): URLSearchParams {
   const query = new URLSearchParams({
     gender: values.gender,
-    birthDate: values.birthDate,
     course: values.course,
+    targetAges: values.targetAges.join(","),
   });
-
-  if (values.compareAges.length > 0) {
-    query.set("compareAges", values.compareAges.join(","));
-  }
 
   return query;
 }
@@ -89,10 +82,9 @@ export function SearchForm() {
     return {
       playerName: "",
       gender: "M",
-      birthDate: "",
       course: "ANY",
       season: "",
-      compareAges: [],
+      targetAges: [],
     };
   });
   const [history, setHistory] = useState<SearchHistoryItem[]>(() => readSearchHistory());
@@ -106,12 +98,12 @@ export function SearchForm() {
     setErrors(validate(next));
   };
 
-  const toggleCompareAge = (targetAge: CompareAgeOption) => {
-    const exists = values.compareAges.includes(targetAge);
+  const toggleTargetAge = (targetAge: CompareAgeOption) => {
+    const exists = values.targetAges.includes(targetAge);
     const nextAges = exists
-      ? values.compareAges.filter((item) => item !== targetAge)
-      : [...values.compareAges, targetAge].sort((a, b) => a - b);
-    setField("compareAges", nextAges);
+      ? values.targetAges.filter((item) => item !== targetAge)
+      : [...values.targetAges, targetAge].sort((a, b) => a - b);
+    setField("targetAges", nextAges);
   };
 
   const pushToResult = (input: FormValues) => {
@@ -128,10 +120,9 @@ export function SearchForm() {
     const input: FormValues = {
       playerName: item.playerName,
       gender: item.gender,
-      birthDate: item.birthDate,
       course: item.course,
       season: "",
-      compareAges: item.compareAges,
+      targetAges: item.targetAges,
     };
 
     setValues(input);
@@ -184,18 +175,6 @@ export function SearchForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">生年月日</label>
-        <input
-          type="date"
-          value={values.birthDate}
-          onChange={(event) => setField("birthDate", event.target.value)}
-          className="w-full rounded border border-zinc-300 px-3 py-2"
-          required
-        />
-        {errors.birthDate ? <p className="mt-1 text-sm text-red-600">{errors.birthDate}</p> : null}
-      </div>
-
-      <div>
         <label className="mb-1 block text-sm font-medium">標準記録のプール長</label>
         <select
           value={values.course}
@@ -212,7 +191,7 @@ export function SearchForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">比較年齢（任意）</label>
+        <label className="mb-1 block text-sm font-medium">検索したい年齢（必須）</label>
         <div className="flex flex-wrap gap-2">
           {COMPARE_AGE_OPTIONS.map((targetAge) => (
             <label
@@ -221,16 +200,14 @@ export function SearchForm() {
             >
               <input
                 type="checkbox"
-                checked={values.compareAges.includes(targetAge)}
-                onChange={() => toggleCompareAge(targetAge)}
+                checked={values.targetAges.includes(targetAge)}
+                onChange={() => toggleTargetAge(targetAge)}
               />
               {formatCompareAgeLabel(targetAge)}
             </label>
           ))}
         </div>
-        <p className="mt-1 text-xs text-zinc-600">
-          現在年齢の区分は常に表示されます（17歳以上は17歳以上区分として扱います）。
-        </p>
+        {errors.targetAges ? <p className="mt-1 text-sm text-red-600">{errors.targetAges}</p> : null}
       </div>
 
       <button
@@ -250,16 +227,16 @@ export function SearchForm() {
           <div className="space-y-2">
             {history.map((item, index) => (
               <button
-                key={`${item.playerName}-${item.gender}-${item.birthDate}-${item.course}-${item.season}-${item.searchedAt}-${index}`}
+                key={`${item.playerName}-${item.gender}-${item.course}-${item.season}-${item.searchedAt}-${index}`}
                 type="button"
                 onClick={() => onHistoryClick(item)}
                 className="w-full rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-left hover:bg-zinc-100"
               >
                 <p className="text-sm font-medium">
                   選手名: {item.playerName === "" ? "未入力" : item.playerName} / {GENDER_LABELS[item.gender]} /{" "}
-                  {item.birthDate} / {formatCourseStandardRecordLabel(item.course)}
-                  {item.compareAges.length > 0
-                    ? ` / 比較: ${item.compareAges.map((value) => formatCompareAgeLabel(value)).join(", ")}`
+                  {formatCourseStandardRecordLabel(item.course)}
+                  {item.targetAges.length > 0
+                    ? ` / 検索年齢: ${item.targetAges.map((value) => formatCompareAgeLabel(value)).join(", ")}`
                     : ""}
                 </p>
                 <p className="mt-1 text-xs text-zinc-600">

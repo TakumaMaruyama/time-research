@@ -3,14 +3,11 @@ import { z } from "zod";
 
 import {
   normalizeCompareAges,
-  toCompareAgeBucket,
 } from "@/lib/compare-age";
 import { db } from "@/db/client";
 import { meets, standards } from "@/db/schema";
 import {
-  calculateFullAge,
   getCurrentDatePartsInTimeZone,
-  parseIsoDateOnly,
 } from "@/lib/date";
 import {
   courseSchema,
@@ -27,11 +24,10 @@ import { formatTimeMs } from "@/lib/time";
 
 export const searchRequestSchema = z.object({
   gender: genderSchema,
-  birthDate: z.string(),
   course: courseSchema,
   season: z.number().int().min(1900).max(3000).nullable().optional().default(null),
+  targetAges: z.array(z.number().int().min(9).max(17)).optional().default([]),
   compareAges: z.array(z.number().int().min(9).max(17)).optional().default([]),
-  compareOffsets: z.array(z.number().int().min(1).max(20)).optional().default([]),
 });
 
 export type SearchRequest = z.infer<typeof searchRequestSchema>;
@@ -53,8 +49,7 @@ export type SearchMeetResult = {
 };
 
 export type SearchResponse = {
-  age: number;
-  ages: number[];
+  targetAges: number[];
   season: number | null;
   course: Course;
   gender: Gender;
@@ -82,7 +77,8 @@ async function resolveSearchSeason(params: {
   fallbackDate: ReturnType<typeof getCurrentDatePartsInTimeZone>;
   courses: Course[];
   gender: Gender;
-  age: number;
+  minAge: number;
+  maxAge: number;
 }): Promise<number> {
   const latestRows = await db
     .select({
@@ -94,8 +90,8 @@ async function resolveSearchSeason(params: {
       and(
         inArray(meets.course, params.courses),
         eq(standards.gender, params.gender),
-        lte(standards.ageMin, params.age),
-        gte(standards.ageMax, params.age),
+        lte(standards.ageMin, params.maxAge),
+        gte(standards.ageMax, params.minAge),
         inArray(meets.level, [...STANDARD_LEVELS]),
       ),
     );
@@ -112,20 +108,11 @@ async function resolveSearchSeason(params: {
 }
 
 export async function searchStandards(input: SearchRequest): Promise<SearchResponse> {
-  const birthDate = parseIsoDateOnly(input.birthDate);
-  if (!birthDate) {
-    throw new BadRequestError("birthDate must be YYYY-MM-DD.");
-  }
-
   const currentDate = getCurrentDatePartsInTimeZone("Asia/Tokyo");
-  const age = calculateFullAge(birthDate, currentDate);
-  const currentAgeBucket = toCompareAgeBucket(age);
-  const compareAges = normalizeCompareAges(
-    input.compareAges.length > 0
-      ? input.compareAges
-      : input.compareOffsets.map((offset) => toCompareAgeBucket(age + offset)),
-  );
-  const ages = [...new Set([currentAgeBucket, ...compareAges])].sort((a, b) => a - b);
+  const targetAges = normalizeCompareAges([...input.targetAges, ...input.compareAges]);
+  if (targetAges.length === 0) {
+    throw new BadRequestError("targetAges must include at least one value.");
+  }
   const courses = resolveSearchCourses(input.course);
   const searchAllSeasons = input.course === "ANY" && input.season === null;
 
@@ -137,11 +124,12 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
           fallbackDate: currentDate,
           courses,
           gender: input.gender,
-          age,
+          minAge: Math.min(...targetAges),
+          maxAge: Math.max(...targetAges),
         });
 
-  const minAge = Math.min(...ages);
-  const maxAge = Math.max(...ages);
+  const minAge = Math.min(...targetAges);
+  const maxAge = Math.max(...targetAges);
 
   const found = await db
     .select({
@@ -204,7 +192,7 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
       continue;
     }
 
-    for (const targetAge of ages) {
+    for (const targetAge of targetAges) {
       if (row.ageMin <= targetAge && row.ageMax >= targetAge) {
         const itemKey = `${row.eventCode}|${targetAge}`;
         if (seen.has(itemKey)) {
@@ -239,8 +227,7 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
   }
 
   return {
-    age,
-    ages,
+    targetAges,
     season,
     course: input.course,
     gender: input.gender,

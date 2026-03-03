@@ -1,9 +1,4 @@
-import { normalizeCompareAges, toCompareAgeBucket } from "@/lib/compare-age";
-import {
-  calculateFullAge,
-  getCurrentDatePartsInTimeZone,
-  parseIsoDateOnly,
-} from "@/lib/date";
+import { normalizeCompareAges } from "@/lib/compare-age";
 import { COURSES, GENDERS, type Course, type Gender } from "@/lib/domain";
 
 export const SEARCH_LAST_INPUT_STORAGE_KEY = "search_last_input_v1";
@@ -13,10 +8,9 @@ export const SEARCH_HISTORY_LIMIT = 10;
 export type StoredSearchInput = {
   playerName: string;
   gender: Gender;
-  birthDate: string;
   course: Course;
   season: string;
-  compareAges: number[];
+  targetAges: number[];
 };
 
 export type SearchHistoryItem = StoredSearchInput & {
@@ -51,10 +45,6 @@ function isValidSeasonString(value: unknown): value is string {
   return /^\d{4}$/.test(trimmed) && seasonNumber >= 1900 && seasonNumber <= 3000;
 }
 
-function isValidIsoDateString(value: unknown): value is string {
-  return typeof value === "string" && parseIsoDateOnly(value.trim()) !== null;
-}
-
 function normalizePlayerName(value: unknown): string | null {
   if (value === undefined) {
     return "";
@@ -65,7 +55,7 @@ function normalizePlayerName(value: unknown): string | null {
   return value.trim().slice(0, 50);
 }
 
-function normalizeCompareAgesField(value: unknown): number[] | null {
+function normalizeTargetAgesField(value: unknown): number[] | null {
   if (value === undefined) {
     return [];
   }
@@ -74,41 +64,6 @@ function normalizeCompareAgesField(value: unknown): number[] | null {
   }
 
   return normalizeCompareAges(value.map((item) => Number.parseInt(String(item), 10)));
-}
-
-function normalizeLegacyCompareOffsets(
-  value: unknown,
-  birthDate: string,
-): number[] | null {
-  if (value === undefined) {
-    return [];
-  }
-  if (!Array.isArray(value)) {
-    return null;
-  }
-
-  const offsets = value
-    .map((item) => Number.parseInt(String(item), 10))
-    .filter((item) => Number.isInteger(item) && item >= 1 && item <= 20);
-
-  const birthParts = parseIsoDateOnly(birthDate);
-  if (!birthParts) {
-    return [];
-  }
-
-  try {
-    const currentDate = getCurrentDatePartsInTimeZone("Asia/Tokyo");
-    const currentAge = calculateFullAge(birthParts, currentDate);
-
-    return normalizeCompareAges(
-      offsets.map((offset) => {
-        const nextAge = currentAge + offset;
-        return toCompareAgeBucket(nextAge);
-      }),
-    );
-  } catch {
-    return [];
-  }
 }
 
 function normalizeStoredSearchInput(input: unknown): StoredSearchInput | null {
@@ -127,29 +82,24 @@ function normalizeStoredSearchInput(input: unknown): StoredSearchInput | null {
   if (!isCourse(input.course)) {
     return null;
   }
-  if (!isValidIsoDateString(input.birthDate)) {
-    return null;
-  }
   if (!isValidSeasonString(input.season)) {
     return null;
   }
 
-  const birthDate = input.birthDate.trim();
-  const hasCompareAges = Object.prototype.hasOwnProperty.call(input, "compareAges");
-  const compareAges = hasCompareAges
-    ? normalizeCompareAgesField(input.compareAges)
-    : normalizeLegacyCompareOffsets(input.compareOffsets, birthDate);
-  if (compareAges === null) {
+  const hasTargetAges = Object.prototype.hasOwnProperty.call(input, "targetAges");
+  const targetAges = hasTargetAges
+    ? normalizeTargetAgesField(input.targetAges)
+    : normalizeTargetAgesField(input.compareAges);
+  if (targetAges === null || targetAges.length === 0) {
     return null;
   }
 
   return {
     playerName,
     gender: input.gender,
-    birthDate,
     course: input.course,
     season: typeof input.season === "string" ? input.season.trim() : "",
-    compareAges,
+    targetAges,
   };
 }
 
@@ -183,7 +133,7 @@ function normalizeHistoryItem(input: unknown): SearchHistoryItem | null {
 }
 
 function makeHistoryKey(input: StoredSearchInput): string {
-  return `${input.gender}|${input.birthDate}|${input.course}|${input.season}|${input.playerName}|${input.compareAges.join(",")}`;
+  return `${input.gender}|${input.course}|${input.season}|${input.playerName}|${input.targetAges.join(",")}`;
 }
 
 function readStorageValue(key: string): string | null {

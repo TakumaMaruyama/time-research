@@ -27,6 +27,9 @@ export function toCompareAgeBucket(age: number): number {
 }
 
 export function formatCompareAgeLabel(age: number): string {
+  if (age <= COMPARE_AGE_MIN) {
+    return `${COMPARE_AGE_MIN}歳以下`;
+  }
   if (age >= COMPARE_AGE_MAX_BUCKET) {
     return `${COMPARE_AGE_MAX_BUCKET}歳以上`;
   }

@@ -7,17 +7,11 @@ import { useSearchParams } from "next/navigation";
 import {
   formatCompareAgeLabel,
   normalizeCompareAges,
-  toCompareAgeBucket,
 } from "@/lib/compare-age";
 import {
   COURSE_ANY_DESCRIPTION,
   formatCourseStandardRecordLabel,
 } from "@/lib/course-label";
-import {
-  calculateFullAge,
-  getCurrentDatePartsInTimeZone,
-  parseIsoDateOnly,
-} from "@/lib/date";
 import {
   COURSES,
   GENDERS,
@@ -38,8 +32,7 @@ type SearchMeetResult = {
 };
 
 type SearchApiResponse = {
-  age: number;
-  ages: number[];
+  targetAges: number[];
   season: number | null;
   course: Course;
   gender: "M" | "F";
@@ -60,7 +53,7 @@ function isGender(value: string | null): value is "M" | "F" {
   return value !== null && GENDERS.includes(value as "M" | "F");
 }
 
-function parseCompareAges(raw: string): number[] | null {
+function parseTargetAges(raw: string): number[] | null {
   const values = raw
     .split(",")
     .map((value) => value.trim())
@@ -78,78 +71,37 @@ function parseCompareAges(raw: string): number[] | null {
   return normalizeCompareAges(parsed);
 }
 
-function parseLegacyCompareOffsets(raw: string, birthDate: string): number[] | null {
-  const values = raw
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => value !== "");
-
-  const offsets: number[] = [];
-  for (const value of values) {
-    const offset = Number.parseInt(value, 10);
-    if (!Number.isInteger(offset) || offset < 1 || offset > 20) {
-      return null;
-    }
-    offsets.push(offset);
-  }
-
-  const birthParts = parseIsoDateOnly(birthDate);
-  if (!birthParts) {
-    return null;
-  }
-
-  const currentDate = getCurrentDatePartsInTimeZone("Asia/Tokyo");
-  const currentAge = calculateFullAge(birthParts, currentDate);
-
-  return normalizeCompareAges(
-    offsets.map((offset) => toCompareAgeBucket(currentAge + offset)),
-  );
-}
-
 export function ResultClient() {
   const params = useSearchParams();
 
   const requestPayload = useMemo(() => {
     const gender = params.get("gender");
-    const birthDate = params.get("birthDate");
     const course = params.get("course");
-    const compareAgesRaw = params.get("compareAges");
-    const compareOffsetsRaw = params.get("compareOffsets");
+    const targetAgesRaw = params.get("targetAges") ?? params.get("compareAges");
 
     if (!isGender(gender)) {
       return { error: "gender が不正です。" };
-    }
-
-    if (!birthDate || !parseIsoDateOnly(birthDate)) {
-      return { error: "birthDate が不正です。" };
     }
 
     if (!isCourse(course)) {
       return { error: "course が不正です。" };
     }
 
-    let compareAges: number[] = [];
-    if (compareAgesRaw && compareAgesRaw.trim() !== "") {
-      const parsedCompareAges = parseCompareAges(compareAgesRaw);
-      if (parsedCompareAges === null) {
-        return { error: "compareAges が不正です。" };
-      }
-      compareAges = parsedCompareAges;
-    } else if (compareOffsetsRaw && compareOffsetsRaw.trim() !== "") {
-      const migratedCompareAges = parseLegacyCompareOffsets(compareOffsetsRaw, birthDate);
-      if (migratedCompareAges === null) {
-        return { error: "compareOffsets が不正です。" };
-      }
-      compareAges = migratedCompareAges;
+    if (!targetAgesRaw || targetAgesRaw.trim() === "") {
+      return { error: "targetAges が不正です。" };
+    }
+
+    const targetAges = parseTargetAges(targetAgesRaw);
+    if (targetAges === null || targetAges.length === 0) {
+      return { error: "targetAges が不正です。" };
     }
 
     return {
       payload: {
         gender,
-        birthDate,
         course,
         season: null,
-        compareAges,
+        targetAges,
       },
     };
   }, [params]);
@@ -229,9 +181,6 @@ export function ResultClient() {
         <>
           <div className="mb-6 grid gap-2 rounded border border-zinc-200 bg-white p-4 text-sm sm:grid-cols-2">
             <p>
-              <span className="font-medium">算出年齢:</span> {data.age} 歳
-            </p>
-            <p>
               <span className="font-medium">年度:</span> {data.season === null ? "すべて" : data.season}
             </p>
             <p>
@@ -244,8 +193,8 @@ export function ResultClient() {
               <p className="text-xs text-zinc-600 sm:col-span-2">{COURSE_ANY_DESCRIPTION}</p>
             ) : null}
             <p className="sm:col-span-2">
-              <span className="font-medium">比較年齢:</span>{" "}
-              {data.ages.map((value) => formatCompareAgeLabel(value)).join(", ")}
+              <span className="font-medium">検索年齢:</span>{" "}
+              {data.targetAges.map((value) => formatCompareAgeLabel(value)).join(", ")}
             </p>
           </div>
 
@@ -263,11 +212,11 @@ export function ResultClient() {
                         <details key={meet.meet_id} className="rounded border border-zinc-200">
                           <summary className="cursor-pointer list-none p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h3 className="text-base font-semibold">{meet.meet_name}</h3>
-                            <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                              {formatCourseStandardRecordLabel(meet.meet_course)}
-                            </span>
-                          </div>
+                              <h3 className="text-base font-semibold">{meet.meet_name}</h3>
+                              <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+                                {formatCourseStandardRecordLabel(meet.meet_course)}
+                              </span>
+                            </div>
                             <p className="mt-1 text-xs text-zinc-600">
                               標準記録年度: {meet.meet_season} / 大会日付: {meet.meet_date ?? "未設定"} / 種目数:{" "}
                               {new Set(meet.items.map((item) => item.event_code)).size}
@@ -284,7 +233,7 @@ export function ResultClient() {
                                 <thead>
                                   <tr className="border-b border-zinc-200 text-left">
                                     <th className="py-2 pr-3">種目</th>
-                                    {data.ages.map((targetAge) => (
+                                    {data.targetAges.map((targetAge) => (
                                       <th key={`${meet.meet_id}-age-${targetAge}`} className="py-2 pr-3">
                                         {formatCompareAgeLabel(targetAge)}
                                       </th>
@@ -307,7 +256,7 @@ export function ResultClient() {
                                           className="border-b border-zinc-100"
                                         >
                                           <td className="py-2 pr-3">{formatEventCodeLabel(eventCode)}</td>
-                                          {data.ages.map((targetAge) => (
+                                          {data.targetAges.map((targetAge) => (
                                             <td
                                               key={`${meet.meet_id}-${eventCode}-${targetAge}`}
                                               className="py-2 pr-3"
