@@ -6,6 +6,7 @@ import {
   COURSE_LABELS,
   formatCourseStandardRecordLabel,
 } from "@/lib/course-label";
+import { parseIsoDateOnly } from "@/lib/date";
 import {
   COURSES,
   EVENT_CODE_REGEX,
@@ -176,6 +177,7 @@ export function AdminRecordsEditor({
 
   const [newRecord, setNewRecord] = useState<NewRecord>(newRecordDefault());
   const [editingSeason, setEditingSeason] = useState("");
+  const [editingMeetDate, setEditingMeetDate] = useState("");
 
   const [listError, setListError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -247,6 +249,7 @@ export function AdminRecordsEditor({
 
       setSelectedMeet(body.meet);
       setEditingSeason(String(body.meet.season));
+      setEditingMeetDate(body.meet.meet_date ?? "");
       setRecords(body.records.map(toEditable));
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : "大会詳細の取得に失敗しました。");
@@ -456,7 +459,7 @@ export function AdminRecordsEditor({
     }
   };
 
-  const saveMeetSeason = async () => {
+  const saveMeetInfo = async () => {
     if (!selectedMeet) {
       return;
     }
@@ -464,6 +467,12 @@ export function AdminRecordsEditor({
     const seasonNumber = Number.parseInt(editingSeason.trim(), 10);
     if (!/^\d{4}$/.test(editingSeason.trim()) || seasonNumber < 1900 || seasonNumber > 3000) {
       setEditorError("年度は4桁の数値で入力してください。");
+      return;
+    }
+
+    const normalizedMeetDate = editingMeetDate.trim() === "" ? null : editingMeetDate.trim();
+    if (normalizedMeetDate !== null && parseIsoDateOnly(normalizedMeetDate) === null) {
+      setEditorError("大会日付は YYYY-MM-DD 形式で入力してください。");
       return;
     }
 
@@ -475,7 +484,7 @@ export function AdminRecordsEditor({
       const response = await fetch(`/api/admin/records/${selectedMeet.id}`, {
         method: "PATCH",
         headers: buildHeaders(adminToken, true),
-        body: JSON.stringify({ season: seasonNumber }),
+        body: JSON.stringify({ season: seasonNumber, meet_date: normalizedMeetDate }),
       });
 
       const body = (await response.json()) as { meet?: MeetDetail; error?: string };
@@ -486,21 +495,29 @@ export function AdminRecordsEditor({
       }
 
       if (!response.ok || !body.meet) {
-        throw new Error(body.error ?? "大会年度の更新に失敗しました。");
+        throw new Error(body.error ?? "大会情報の更新に失敗しました。");
       }
 
       const updatedMeet = body.meet;
 
       setSelectedMeet(updatedMeet);
       setEditingSeason(String(updatedMeet.season));
+      setEditingMeetDate(updatedMeet.meet_date ?? "");
       setMeets((prev) =>
         prev.map((item) =>
-          item.id === updatedMeet.id ? { ...item, updated_at: updatedMeet.updated_at, season: updatedMeet.season } : item,
+          item.id === updatedMeet.id
+            ? {
+                ...item,
+                updated_at: updatedMeet.updated_at,
+                season: updatedMeet.season,
+                meet_date: updatedMeet.meet_date,
+              }
+            : item,
         ),
       );
-      setEditorInfo("大会年度を更新しました。");
+      setEditorInfo("大会情報を更新しました。");
     } catch (error) {
-      setEditorError(error instanceof Error ? error.message : "大会年度の更新に失敗しました。");
+      setEditorError(error instanceof Error ? error.message : "大会情報の更新に失敗しました。");
     } finally {
       setSavingMeet(false);
     }
@@ -612,13 +629,28 @@ export function AdminRecordsEditor({
                     onChange={(event) => setEditingSeason(event.target.value)}
                     className="w-28 rounded border border-zinc-300 px-2 py-1 text-xs"
                   />
+                  <label className="text-xs text-zinc-700">大会日付</label>
+                  <input
+                    type="date"
+                    value={editingMeetDate}
+                    onChange={(event) => setEditingMeetDate(event.target.value)}
+                    className="w-40 rounded border border-zinc-300 px-2 py-1 text-xs"
+                  />
                   <button
                     type="button"
-                    onClick={saveMeetSeason}
+                    onClick={() => setEditingMeetDate("")}
+                    disabled={savingMeet || editingMeetDate === ""}
+                    className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 disabled:opacity-60"
+                  >
+                    日付クリア
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveMeetInfo}
                     disabled={savingMeet}
                     className="rounded bg-zinc-900 px-2 py-1 text-xs text-white disabled:opacity-60"
                   >
-                    {savingMeet ? "保存中" : "年度を保存"}
+                    {savingMeet ? "保存中" : "大会情報を保存"}
                   </button>
                 </div>
                 {selectedMeet.metadata ? (

@@ -189,6 +189,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .update(meets)
       .set({
         season: input.season,
+        ...(input.meet_date !== undefined ? { meetDate: input.meet_date } : {}),
         updatedAt: sql`now()`,
       })
       .where(eq(meets.id, meetId))

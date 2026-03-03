@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { courseSchema, EVENT_CODE_REGEX, genderSchema, standardLevelSchema } from "@/lib/domain";
 import { BadRequestError } from "@/lib/errors";
+import { parseIsoDateOnly } from "@/lib/date";
 import { parseTimeToMs } from "@/lib/time";
 
 export const adminRecordsFilterSchema = z.object({
@@ -34,9 +35,20 @@ export const adminRecordUpsertSchema = z
     }
   });
 
-export const adminMeetUpdateSchema = z.object({
-  season: z.coerce.number().int().min(1900).max(3000),
-});
+export const adminMeetUpdateSchema = z
+  .object({
+    season: z.coerce.number().int().min(1900).max(3000),
+    meet_date: z.union([z.string().trim().min(1), z.null()]).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (typeof value.meet_date === "string" && parseIsoDateOnly(value.meet_date) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "meet_date must be YYYY-MM-DD.",
+        path: ["meet_date"],
+      });
+    }
+  });
 
 export type AdminRecordsFilter = z.infer<typeof adminRecordsFilterSchema>;
 
