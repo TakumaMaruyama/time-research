@@ -178,6 +178,7 @@ export function AdminRecordsEditor({
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [savingRecordId, setSavingRecordId] = useState<string | null>(null);
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null);
+  const [deletingMeetId, setDeletingMeetId] = useState<string | null>(null);
   const [addingRecord, setAddingRecord] = useState(false);
 
   const [newRecord, setNewRecord] = useState<NewRecord>(newRecordDefault());
@@ -428,6 +429,52 @@ export function AdminRecordsEditor({
     }
   };
 
+  const deleteMeet = async (meet: MeetSummary) => {
+    if (
+      !window.confirm(
+        `大会「${meet.name}」を削除しますか？\nこの大会に紐づく標準記録（${meet.row_count}件）も削除されます。`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingMeetId(meet.id);
+    setListError(null);
+    setEditorError(null);
+    setEditorInfo(null);
+
+    try {
+      const response = await fetch(`/api/admin/records/${meet.id}`, {
+        method: "DELETE",
+        headers: buildHeaders(adminToken),
+      });
+
+      const body = (await response.json()) as { deletedMeetId?: string; error?: string };
+
+      if (response.status === 401) {
+        onUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "大会の削除に失敗しました。");
+      }
+
+      setMeets((prev) => prev.filter((item) => item.id !== meet.id));
+
+      if (selectedMeet?.id === meet.id) {
+        setSelectedMeet(null);
+        setRecords([]);
+      }
+
+      setEditorInfo("大会を削除しました。");
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : "大会の削除に失敗しました。");
+    } finally {
+      setDeletingMeetId(null);
+    }
+  };
+
   return (
     <section className="space-y-4 rounded border border-zinc-200 bg-white p-6">
       <h2 className="text-lg font-semibold">登録済み記録の閲覧・編集</h2>
@@ -496,21 +543,30 @@ export function AdminRecordsEditor({
           ) : (
             <div className="space-y-2">
               {meets.map((meet) => (
-                <button
-                  key={meet.id}
-                  type="button"
-                  onClick={() => loadMeetDetail(meet.id)}
-                  className={`w-full rounded border px-3 py-2 text-left text-xs transition-colors ${
-                    selectedMeet?.id === meet.id
-                      ? "border-zinc-900 bg-zinc-900 text-white"
-                      : "border-zinc-300 bg-white hover:bg-zinc-100"
-                  }`}
-                >
-                  <p className="font-semibold">{meet.name}</p>
-                  <p>{formatCourseStandardRecordLabel(meet.course)}</p>
-                  <p>日付: {meet.meet_date ?? "未設定"}</p>
-                  <p>件数: {meet.row_count}</p>
-                </button>
+                <div key={meet.id} className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadMeetDetail(meet.id)}
+                    className={`flex-1 rounded border px-3 py-2 text-left text-xs transition-colors ${
+                      selectedMeet?.id === meet.id
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-300 bg-white hover:bg-zinc-100"
+                    }`}
+                  >
+                    <p className="font-semibold">{meet.name}</p>
+                    <p>{formatCourseStandardRecordLabel(meet.course)}</p>
+                    <p>日付: {meet.meet_date ?? "未設定"}</p>
+                    <p>件数: {meet.row_count}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteMeet(meet)}
+                    disabled={deletingMeetId === meet.id}
+                    className="rounded bg-red-700 px-2 py-1 text-[11px] text-white disabled:opacity-60"
+                  >
+                    {deletingMeetId === meet.id ? "削除中" : "大会削除"}
+                  </button>
+                </div>
               ))}
             </div>
           )}

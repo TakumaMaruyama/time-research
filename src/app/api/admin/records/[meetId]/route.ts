@@ -168,3 +168,32 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    if (!isAdminRequest(request)) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const meetId = parseUuid(params.meetId, "meetId");
+
+    const deleted = await db
+      .delete(meets)
+      .where(eq(meets.id, meetId))
+      .returning({ id: meets.id });
+
+    if (deleted.length === 0) {
+      return NextResponse.json({ error: "Meet not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, deletedMeetId: deleted[0].id });
+  } catch (error) {
+    if (error instanceof BadRequestError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  }
+}
