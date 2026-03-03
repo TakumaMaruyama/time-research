@@ -145,5 +145,5 @@ npm run dev
 ## Replit Deploy
 
 1. Replit Secrets に `DATABASE_URL` と `ADMIN_PASSWORD` を設定
-2. `npm run db:migrate` を実行
-3. Deploy 設定の Start command を `npm run start` にしてデプロイ
+2. 初回のみ `npm run db:setup` を実行（2回目以降は不要）
+3. Deploy 設定の Build command は `npm run build`、Start command は `npm run start` にしてデプロイ

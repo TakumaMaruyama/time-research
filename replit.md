@@ -52,7 +52,8 @@ postcss-fix-tailwind-urls/  # Local PostCSS plugin for Tailwind v4 compatibility
 - `drizzle/seed.sql` — 開発環境からエクスポートしたシードデータ（sources, meets, standards）
 - `scripts/seed.ts` — シードを実行するスクリプト（データが既にある場合はスキップ）
 - `npm run db:seed` — シードスクリプトの実行コマンド
-- デプロイ時のビルドコマンド: `npm run db:migrate && npm run db:seed && npm run build`
+- `npm run db:setup` — 初回セットアップ用（`db:migrate` + `db:seed`）
+- デプロイ時のビルドコマンド: `npm run build`（DB変更は含めない）
 
 ## Known Issues / Notes
 - Must use `--webpack` flag in dev (not Turbopack) because lightningcss native binaries can't load in Replit's Turbopack sandbox
