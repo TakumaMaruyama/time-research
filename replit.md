@@ -50,7 +50,7 @@ postcss-fix-tailwind-urls/  # Local PostCSS plugin for Tailwind v4 compatibility
 
 ## Database Seeding
 - `drizzle/seed.sql` — 開発環境からエクスポートしたシードデータ（sources, meets, standards）
-- `scripts/seed.ts` — シードを実行するスクリプト（`seed.sql` をそのまま適用）
+- `scripts/seed.ts` — シードを実行するスクリプト（既存IDは `DO UPDATE` で更新）
 - `npm run db:seed` — シードスクリプトの実行コマンド
 - `npm run db:setup` — 初回セットアップ用（`db:migrate` + `db:seed`）
 - デプロイ時のビルドコマンド: `npm run build`（DB変更は含めない）
