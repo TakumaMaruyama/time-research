@@ -45,6 +45,11 @@ const LEVEL_LABELS: Record<StandardLevel, string> = {
   kagoshima: "県レベル",
 };
 
+const GENDER_LABELS: Record<"M" | "F", string> = {
+  M: "男子",
+  F: "女子",
+};
+
 function isCourse(value: string | null): value is Course {
   return value !== null && COURSES.includes(value as Course);
 }
@@ -184,7 +189,7 @@ export function ResultClient() {
               <span className="font-medium">年度:</span> {data.season === null ? "すべて" : data.season}
             </p>
             <p>
-              <span className="font-medium">性別:</span> {data.gender}
+              <span className="font-medium">性別:</span> {GENDER_LABELS[data.gender]}
             </p>
             <p>
               <span className="font-medium">検索対象:</span> {formatCourseStandardRecordLabel(data.course)}
@@ -201,82 +206,102 @@ export function ResultClient() {
           <div className="space-y-6">
             {STANDARD_LEVELS.map((level) => {
               const meets = data.results[level];
+              const levelSectionKey = [
+                level,
+                data.gender,
+                data.course,
+                data.season === null ? "all" : String(data.season),
+                data.targetAges.join(","),
+              ].join("|");
               return (
-                <section key={level} className="rounded border border-zinc-200 bg-white p-4">
-                  <h2 className="mb-3 text-lg font-semibold">{LEVEL_LABELS[level]}</h2>
-                  {meets.length === 0 ? (
-                    <p className="text-sm text-zinc-600">該当なし</p>
-                  ) : (
-                    <div className="space-y-5">
-                      {meets.map((meet) => (
-                        <details key={meet.meet_id} className="rounded border border-zinc-200">
-                          <summary className="cursor-pointer list-none p-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h3 className="text-base font-semibold">{meet.meet_name}</h3>
-                              <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                                {formatCourseStandardRecordLabel(meet.meet_course)}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-zinc-600">
-                              標準記録年度: {meet.meet_season} / 大会日付: {meet.meet_date ?? "未設定"} / 種目数:{" "}
-                              {new Set(meet.items.map((item) => item.event_code)).size}
-                            </p>
-                          </summary>
-                          <div className="border-t border-zinc-200 p-3">
-                            {meet.meet_metadata ? (
-                              <p className="mb-3 mt-1 break-all text-xs text-zinc-600">
-                                metadata: {JSON.stringify(meet.meet_metadata)}
-                              </p>
-                            ) : null}
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm">
-                                <thead>
-                                  <tr className="border-b border-zinc-200 text-left">
-                                    <th className="py-2 pr-3">種目</th>
-                                    {data.targetAges.map((targetAge) => (
-                                      <th key={`${meet.meet_id}-age-${targetAge}`} className="py-2 pr-3">
-                                        {formatCompareAgeLabel(targetAge)}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {Array.from(new Set(meet.items.map((item) => item.event_code))).map(
-                                    (eventCode) => {
-                                      const byAge = new Map<number, string>();
-                                      for (const item of meet.items) {
-                                        if (item.event_code === eventCode) {
-                                          byAge.set(item.age, item.time);
-                                        }
-                                      }
-
-                                      return (
-                                        <tr
-                                          key={`${meet.meet_id}-${eventCode}`}
-                                          className="border-b border-zinc-100"
-                                        >
-                                          <td className="py-2 pr-3">{formatEventCodeLabel(eventCode)}</td>
-                                          {data.targetAges.map((targetAge) => (
-                                            <td
-                                              key={`${meet.meet_id}-${eventCode}-${targetAge}`}
-                                              className="py-2 pr-3"
-                                            >
-                                              {byAge.get(targetAge) ?? "-"}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      );
-                                    },
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </details>
-                      ))}
+                <details
+                  key={levelSectionKey}
+                  className="rounded border border-zinc-200 bg-white p-4"
+                >
+                  <summary className="cursor-pointer list-none">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="text-lg font-semibold">{LEVEL_LABELS[level]}</h2>
+                      <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+                        {meets.length}件
+                      </span>
                     </div>
-                  )}
-                </section>
+                  </summary>
+
+                  <div className="mt-3">
+                    {meets.length === 0 ? (
+                      <p className="text-sm text-zinc-600">該当なし</p>
+                    ) : (
+                      <div className="space-y-5">
+                        {meets.map((meet) => (
+                          <details key={meet.meet_id} className="rounded border border-zinc-200">
+                            <summary className="cursor-pointer list-none p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-base font-semibold">{meet.meet_name}</h3>
+                                <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+                                  {formatCourseStandardRecordLabel(meet.meet_course)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-zinc-600">
+                                標準記録年度: {meet.meet_season} / 大会日付: {meet.meet_date ?? "未設定"} / 種目数:{" "}
+                                {new Set(meet.items.map((item) => item.event_code)).size}
+                              </p>
+                            </summary>
+                            <div className="border-t border-zinc-200 p-3">
+                              {meet.meet_metadata ? (
+                                <p className="mb-3 mt-1 break-all text-xs text-zinc-600">
+                                  metadata: {JSON.stringify(meet.meet_metadata)}
+                                </p>
+                              ) : null}
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-zinc-200 text-left">
+                                      <th className="py-2 pr-3">種目</th>
+                                      {data.targetAges.map((targetAge) => (
+                                        <th key={`${meet.meet_id}-age-${targetAge}`} className="py-2 pr-3">
+                                          {formatCompareAgeLabel(targetAge)}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {Array.from(new Set(meet.items.map((item) => item.event_code))).map(
+                                      (eventCode) => {
+                                        const byAge = new Map<number, string>();
+                                        for (const item of meet.items) {
+                                          if (item.event_code === eventCode) {
+                                            byAge.set(item.age, item.time);
+                                          }
+                                        }
+
+                                        return (
+                                          <tr
+                                            key={`${meet.meet_id}-${eventCode}`}
+                                            className="border-b border-zinc-100"
+                                          >
+                                            <td className="py-2 pr-3">{formatEventCodeLabel(eventCode)}</td>
+                                            {data.targetAges.map((targetAge) => (
+                                              <td
+                                                key={`${meet.meet_id}-${eventCode}-${targetAge}`}
+                                                className="py-2 pr-3"
+                                              >
+                                                {byAge.get(targetAge) ?? "-"}
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        );
+                                      },
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </details>
               );
             })}
           </div>
