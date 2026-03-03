@@ -111,7 +111,7 @@ npm run dev
 }
 ```
 
-- `event_code` は `/^(FR|BK|BR|FL|IM)_\d{2,4}$/`
+- `event_code` は `/^((FR|BK|BR|FL|IM)_\d{2,4}|(FRR|MRR)_\dX\d{2,4})$/`
 - `time` は `59.87`, `1:02.34`, `00:29.80`, `10:12.34` を許容
 - 壊れた行はエラーとして除外
 
@@ -132,7 +132,8 @@ npm run dev
   "rows":[
     {"gender":"M","age_min":11,"age_max":12,"event_code":"FR_50","time":"29.80"},
     {"gender":"M","age_min":11,"age_max":12,"event_code":"FR_100","time":"1:05.20"},
-    {"gender":"F","age_min":13,"age_max":14,"event_code":"IM_200","time":"2:28.50"}
+    {"gender":"F","age_min":13,"age_max":14,"event_code":"IM_200","time":"2:28.50"},
+    {"gender":"M","age_min":13,"age_max":14,"event_code":"FRR_4X100","time":"4:12.34"}
   ]
 }
 ```

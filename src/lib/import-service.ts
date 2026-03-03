@@ -55,7 +55,7 @@ const importRowSchema = z
       .trim()
       .regex(
         EVENT_CODE_REGEX,
-        "event_code must match /^(FR|BK|BR|FL|IM)_\\d{2,4}$/",
+        "event_code must match /^((FR|BK|BR|FL|IM)_\\d{2,4}|(FRR|MRR)_\\dX\\d{2,4})$/",
       ),
     time: z.string().trim().min(1),
   })

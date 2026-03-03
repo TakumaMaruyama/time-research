@@ -123,7 +123,7 @@ function validateRecordInput(record: NewRecord | EditableRecord): string | null 
 
   const eventCode = record.event_code.trim().toUpperCase();
   if (!EVENT_CODE_REGEX.test(eventCode)) {
-    return "event_code は FR/BK/BR/FL/IM + 距離 (例: FR_50) で入力してください。";
+    return "event_code は FR/BK/BR/FL/IM + 距離 (例: FR_50) または FRR/MRR + 組数X距離 (例: FRR_4X100) で入力してください。";
   }
 
   if (record.time.trim() === "") {
@@ -801,7 +801,7 @@ export function AdminRecordsEditor({
                   />
                   <input
                     type="text"
-                    placeholder="FR_50"
+                    placeholder="FR_50 or FRR_4X100"
                     value={newRecord.event_code}
                     onChange={(event) =>
                       setNewRecord((prev) => ({ ...prev, event_code: event.target.value }))
