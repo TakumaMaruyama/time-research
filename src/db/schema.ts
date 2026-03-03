@@ -40,6 +40,7 @@ export const meets = pgTable(
     course: courseEnum("course").notNull(),
     name: text("name").notNull(),
     meetDate: date("meet_date", { mode: "string" }),
+    meetEndDate: date("meet_end_date", { mode: "string" }),
     metadataJson: jsonb("metadata_json"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

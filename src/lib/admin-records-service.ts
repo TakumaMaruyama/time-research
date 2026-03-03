@@ -35,10 +35,15 @@ export const adminRecordUpsertSchema = z
     }
   });
 
+const meetMetadataSchema = z.record(z.string(), z.unknown());
+
 export const adminMeetUpdateSchema = z
   .object({
     season: z.coerce.number().int().min(1900).max(3000),
+    meet_name: z.string().trim().min(1).optional(),
     meet_date: z.union([z.string().trim().min(1), z.null()]).optional(),
+    meet_date_end: z.union([z.string().trim().min(1), z.null()]).optional(),
+    metadata: meetMetadataSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (typeof value.meet_date === "string" && parseIsoDateOnly(value.meet_date) === null) {
@@ -46,6 +51,39 @@ export const adminMeetUpdateSchema = z
         code: z.ZodIssueCode.custom,
         message: "meet_date must be YYYY-MM-DD.",
         path: ["meet_date"],
+      });
+    }
+
+    if (
+      typeof value.meet_date_end === "string" &&
+      parseIsoDateOnly(value.meet_date_end) === null
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "meet_date_end must be YYYY-MM-DD.",
+        path: ["meet_date_end"],
+      });
+      return;
+    }
+
+    if (typeof value.meet_date_end === "string" && (value.meet_date ?? null) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "meet_date_end requires meet_date.",
+        path: ["meet_date_end"],
+      });
+      return;
+    }
+
+    if (
+      typeof value.meet_date === "string" &&
+      typeof value.meet_date_end === "string" &&
+      value.meet_date_end < value.meet_date
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "meet_date_end must be on or after meet_date.",
+        path: ["meet_date_end"],
       });
     }
   });

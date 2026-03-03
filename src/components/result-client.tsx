@@ -27,6 +27,7 @@ type SearchMeetResult = {
   meet_season: number;
   meet_course: Course;
   meet_date: string | null;
+  meet_date_end: string | null;
   meet_metadata: Record<string, unknown> | null;
   items: Array<{ event_code: string; age: number; time: string }>;
 };
@@ -74,6 +75,16 @@ function parseTargetAges(raw: string): number[] | null {
   }
 
   return normalizeCompareAges(parsed);
+}
+
+function formatMeetDateRange(startDate: string | null, endDate: string | null): string {
+  if (!startDate) {
+    return "未設定";
+  }
+  if (!endDate || endDate === startDate) {
+    return startDate;
+  }
+  return `${startDate} 〜 ${endDate}`;
 }
 
 export function ResultClient() {
@@ -242,7 +253,7 @@ export function ResultClient() {
                                 </span>
                               </div>
                               <p className="mt-1 text-xs text-zinc-600">
-                                標準記録年度: {meet.meet_season} / 大会日付: {meet.meet_date ?? "未設定"} / 種目数:{" "}
+                                標準記録年度: {meet.meet_season} / 大会日付: {formatMeetDateRange(meet.meet_date, meet.meet_date_end)} / 種目数:{" "}
                                 {new Set(meet.items.map((item) => item.event_code)).size}
                               </p>
                             </summary>

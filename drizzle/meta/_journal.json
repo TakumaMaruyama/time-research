@@ -36,6 +36,13 @@
       "when": 1772461807617,
       "tag": "0004_bent_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772546124551,
+      "tag": "0005_panoramic_stardust",
+      "breakpoints": true
     }
   ]
 }

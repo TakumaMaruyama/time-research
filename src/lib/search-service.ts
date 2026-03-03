@@ -44,6 +44,7 @@ export type SearchMeetResult = {
   meet_season: number;
   meet_course: Course;
   meet_date: string | null;
+  meet_date_end: string | null;
   meet_metadata: Record<string, unknown> | null;
   items: SearchRow[];
 };
@@ -139,6 +140,7 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
       meetSeason: meets.season,
       meetCourse: meets.course,
       meetDate: meets.meetDate,
+      meetDateEnd: meets.meetEndDate,
       meetMetadata: meets.metadataJson,
       ageMin: standards.ageMin,
       ageMax: standards.ageMax,
@@ -179,6 +181,7 @@ export async function searchStandards(input: SearchRequest): Promise<SearchRespo
         meet_season: row.meetSeason,
         meet_course: row.meetCourse,
         meet_date: row.meetDate,
+        meet_date_end: row.meetDateEnd,
         meet_metadata: (row.meetMetadata ?? null) as Record<string, unknown> | null,
         items: [],
       };

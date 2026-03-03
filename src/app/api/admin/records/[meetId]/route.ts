@@ -25,6 +25,7 @@ async function findMeet(meetId: string) {
       course: meets.course,
       name: meets.name,
       meetDate: meets.meetDate,
+      meetDateEnd: meets.meetEndDate,
       metadata: meets.metadataJson,
       updatedAt: meets.updatedAt,
     })
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         course: meet.course,
         name: meet.name,
         meet_date: meet.meetDate,
+        meet_date_end: meet.meetDateEnd,
         metadata: (meet.metadata ?? null) as Record<string, unknown> | null,
         updated_at: meet.updatedAt.toISOString(),
       },
@@ -189,7 +191,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .update(meets)
       .set({
         season: input.season,
+        ...(input.meet_name !== undefined ? { name: input.meet_name } : {}),
         ...(input.meet_date !== undefined ? { meetDate: input.meet_date } : {}),
+        ...(input.meet_date_end !== undefined ? { meetEndDate: input.meet_date_end } : {}),
+        ...(input.metadata !== undefined ? { metadataJson: input.metadata } : {}),
         updatedAt: sql`now()`,
       })
       .where(eq(meets.id, meetId))
@@ -200,6 +205,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         course: meets.course,
         name: meets.name,
         meetDate: meets.meetDate,
+        meetDateEnd: meets.meetEndDate,
         metadata: meets.metadataJson,
         updatedAt: meets.updatedAt,
       });
@@ -217,6 +223,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         course: row.course,
         name: row.name,
         meet_date: row.meetDate,
+        meet_date_end: row.meetDateEnd,
         metadata: (row.metadata ?? null) as Record<string, unknown> | null,
         updated_at: row.updatedAt.toISOString(),
       },

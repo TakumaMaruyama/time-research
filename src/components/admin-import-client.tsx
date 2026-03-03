@@ -19,6 +19,7 @@ type PreviewResponse = {
     course: Course;
     name: string;
     meet_date: string | null;
+    meet_date_end: string | null;
     metadata: Record<string, unknown> | null;
     exists: boolean;
   };
@@ -96,6 +97,7 @@ type AdminImportFormDraft = {
   course: Course;
   meetName: string;
   meetDate: string;
+  meetDateEnd: string;
   meetMetadataText: string;
   jsonText: string;
 };
@@ -129,6 +131,7 @@ function readAdminImportDraft(): AdminImportFormDraft | null {
       course: parsed.course,
       meetName: typeof parsed.meetName === "string" ? parsed.meetName : "サンプル大会",
       meetDate: typeof parsed.meetDate === "string" ? parsed.meetDate : "",
+      meetDateEnd: typeof parsed.meetDateEnd === "string" ? parsed.meetDateEnd : "",
       meetMetadataText: typeof parsed.meetMetadataText === "string" ? parsed.meetMetadataText : "",
       jsonText: typeof parsed.jsonText === "string" ? parsed.jsonText : "",
     };
@@ -172,6 +175,16 @@ function parseMetadataText(text: string): {
   }
 }
 
+function formatMeetDateRange(startDate: string | null, endDate: string | null): string {
+  if (!startDate) {
+    return "未設定";
+  }
+  if (!endDate || endDate === startDate) {
+    return startDate;
+  }
+  return `${startDate} 〜 ${endDate}`;
+}
+
 export function AdminImportClient() {
   const [authenticated, setAuthenticated] = useState(false);
   const [adminToken, setAdminToken] = useState<string | null>(null);
@@ -185,6 +198,7 @@ export function AdminImportClient() {
   const [course, setCourse] = useState<Course>("SCM");
   const [meetName, setMeetName] = useState("サンプル大会");
   const [meetDate, setMeetDate] = useState("");
+  const [meetDateEnd, setMeetDateEnd] = useState("");
   const [meetMetadataText, setMeetMetadataText] = useState("");
   const [jsonText, setJsonText] = useState("");
 
@@ -242,6 +256,7 @@ export function AdminImportClient() {
     setCourse(draft.course);
     setMeetName(draft.meetName);
     setMeetDate(draft.meetDate);
+    setMeetDateEnd(draft.meetDateEnd);
     setMeetMetadataText(draft.meetMetadataText);
     setJsonText(draft.jsonText);
   }, []);
@@ -253,10 +268,11 @@ export function AdminImportClient() {
       course,
       meetName,
       meetDate,
+      meetDateEnd,
       meetMetadataText,
       jsonText,
     });
-  }, [level, season, course, meetName, meetDate, meetMetadataText, jsonText]);
+  }, [level, season, course, meetName, meetDate, meetDateEnd, meetMetadataText, jsonText]);
 
   const seasonError = useMemo(() => {
     const seasonNumber = Number.parseInt(season, 10);
@@ -283,6 +299,33 @@ export function AdminImportClient() {
     }
     return null;
   }, [meetDate]);
+
+  const meetDateEndError = useMemo(() => {
+    const trimmed = meetDateEnd.trim();
+    if (trimmed === "") {
+      return null;
+    }
+    if (!parseIsoDateOnly(trimmed)) {
+      return "大会終了日は YYYY-MM-DD 形式で入力してください。";
+    }
+    return null;
+  }, [meetDateEnd]);
+
+  const meetDateRangeError = useMemo(() => {
+    const start = meetDate.trim();
+    const end = meetDateEnd.trim();
+
+    if (end === "") {
+      return null;
+    }
+    if (start === "") {
+      return "大会終了日を入力する場合は大会日付も入力してください。";
+    }
+    if (start > end) {
+      return "大会終了日は大会日付以降を入力してください。";
+    }
+    return null;
+  }, [meetDate, meetDateEnd]);
 
   const metadataInput = useMemo(() => parseMetadataText(meetMetadataText), [meetMetadataText]);
 
@@ -337,6 +380,14 @@ export function AdminImportClient() {
       setActionError(meetDateError);
       return;
     }
+    if (meetDateEndError) {
+      setActionError(meetDateEndError);
+      return;
+    }
+    if (meetDateRangeError) {
+      setActionError(meetDateRangeError);
+      return;
+    }
 
     if (jsonText.trim() === "") {
       setActionError("JSONを入力してください。");
@@ -364,6 +415,7 @@ export function AdminImportClient() {
           course,
           meetName: meetName.trim(),
           meetDate: meetDate.trim() === "" ? null : meetDate.trim(),
+          meetDateEnd: meetDateEnd.trim() === "" ? null : meetDateEnd.trim(),
           meetMetadata: metadataInput.value,
           jsonText,
         }),
@@ -496,6 +548,18 @@ export function AdminImportClient() {
         </div>
 
         <div>
+          <label className="mb-1 block text-sm font-medium">大会終了日（任意）</label>
+          <input
+            type="date"
+            value={meetDateEnd}
+            onChange={(event) => setMeetDateEnd(event.target.value)}
+            className="w-full rounded border border-zinc-300 px-3 py-2"
+          />
+          {meetDateEndError ? <p className="mt-1 text-xs text-red-700">{meetDateEndError}</p> : null}
+          {meetDateRangeError ? <p className="mt-1 text-xs text-red-700">{meetDateRangeError}</p> : null}
+        </div>
+
+        <div>
           <label className="mb-1 block text-sm font-medium">metadata(JSON, 任意)</label>
           <textarea
             value={meetMetadataText}
@@ -545,7 +609,7 @@ export function AdminImportClient() {
             {COURSE_LABELS[preview.meet.course]}）
           </p>
           <p className="text-sm">
-            大会日付: {preview.meet.meet_date ?? "未設定"}
+            大会日付: {formatMeetDateRange(preview.meet.meet_date, preview.meet.meet_date_end)}
           </p>
           <p className="text-sm">大会の状態: {preview.meet.exists ? "既存大会を更新" : "新規大会を作成"}</p>
           <p className="text-sm">

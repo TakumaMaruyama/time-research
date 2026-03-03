@@ -58,6 +58,7 @@ npm run dev
   "course": "SCM",
   "meetName": "2026 県春季記録会",
   "meetDate": "2026-05-03",
+  "meetDateEnd": "2026-05-05",
   "meetMetadata": { "category": "県予選" },
   "jsonText": "{ ... }"
 }
@@ -66,6 +67,7 @@ npm run dev
 - `course` は `SCM` / `LCM` / `ANY`（短水路・長水路共通）
 - `ANY` は「短水路・長水路のどちらかの記録で標準記録を突破していれば可」を意味します。
 - `meetDate` は任意（`YYYY-MM-DD`）
+- `meetDateEnd` は任意（`YYYY-MM-DD`、`meetDate` と同日またはそれ以降）
 
 ### 検索APIレスポンス（抜粋）
 
@@ -80,6 +82,8 @@ npm run dev
       {
         "meet_id": "uuid",
         "meet_name": "全国大会A",
+        "meet_date": "2026-05-03",
+        "meet_date_end": "2026-05-05",
         "meet_metadata": { "category": "本戦" },
         "items": [{ "event_code": "FR_50", "time": "00:29.80" }]
       }

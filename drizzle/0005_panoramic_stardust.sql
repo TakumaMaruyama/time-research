@@ -1,0 +1,1 @@
+ALTER TABLE "meets" ADD COLUMN "meet_end_date" date;

@@ -42,12 +42,14 @@ export async function POST(request: NextRequest) {
           course: input.course,
           name: input.meetName,
           meetDate: preview.meet.meet_date,
+          meetEndDate: preview.meet.meet_date_end,
           metadataJson: input.meetMetadata,
         })
         .onConflictDoUpdate({
           target: [meets.level, meets.season, meets.course, meets.name],
           set: {
             meetDate: preview.meet.meet_date,
+            meetEndDate: preview.meet.meet_date_end,
             metadataJson: input.meetMetadata,
             updatedAt: sql`now()`,
           },
