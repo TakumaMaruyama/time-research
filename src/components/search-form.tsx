@@ -10,10 +10,8 @@ import {
 } from "@/lib/compare-age";
 import {
   COURSE_ANY_DESCRIPTION,
-  COURSE_LABELS,
-  formatCourseStandardRecordLabel,
 } from "@/lib/course-label";
-import { COURSES, GENDERS } from "@/lib/domain";
+import { GENDERS } from "@/lib/domain";
 import {
   readLastSearchInput,
   readSearchHistory,
@@ -49,7 +47,6 @@ function validate(values: FormValues): FormErrors {
 function buildSearchQuery(values: FormValues): URLSearchParams {
   const query = new URLSearchParams({
     gender: values.gender,
-    course: values.course,
     targetAges: values.targetAges.join(","),
   });
 
@@ -77,7 +74,7 @@ export function SearchForm() {
   const [values, setValues] = useState<FormValues>(() => {
     const loaded = readLastSearchInput();
     if (loaded) {
-      return { ...loaded, season: "" };
+      return { ...loaded, course: "ANY", season: "" };
     }
     return {
       playerName: "",
@@ -120,7 +117,7 @@ export function SearchForm() {
     const input: FormValues = {
       playerName: item.playerName,
       gender: item.gender,
-      course: item.course,
+      course: "ANY",
       season: "",
       targetAges: item.targetAges,
     };
@@ -174,19 +171,11 @@ export function SearchForm() {
         </select>
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">標準記録のプール長</label>
-        <select
-          value={values.course}
-          onChange={(event) => setField("course", event.target.value as FormValues["course"])}
-          className="w-full rounded border border-zinc-300 px-3 py-2"
-        >
-          {COURSES.map((course) => (
-            <option key={course} value={course}>
-              {COURSE_LABELS[course]}
-            </option>
-          ))}
-        </select>
+      <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+        <p className="text-sm font-medium">プール長</p>
+        <p className="mt-1 text-xs text-zinc-600">
+          検索時の選択は不要です。短水路・長水路・共通をまとめて表示します。
+        </p>
         <p className="mt-1 text-xs text-zinc-600">{COURSE_ANY_DESCRIPTION}</p>
       </div>
 
@@ -233,8 +222,8 @@ export function SearchForm() {
                 className="w-full rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-left hover:bg-zinc-100"
               >
                 <p className="text-sm font-medium">
-                  選手名: {item.playerName === "" ? "未入力" : item.playerName} / {GENDER_LABELS[item.gender]} /{" "}
-                  {formatCourseStandardRecordLabel(item.course)}
+                  選手名: {item.playerName === "" ? "未入力" : item.playerName} / {GENDER_LABELS[item.gender]} /
+                  全プール長
                   {item.targetAges.length > 0
                     ? ` / 検索年齢: ${item.targetAges.map((value) => formatCompareAgeLabel(value)).join(", ")}`
                     : ""}

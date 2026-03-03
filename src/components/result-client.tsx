@@ -92,14 +92,21 @@ export function ResultClient() {
 
   const requestPayload = useMemo(() => {
     const gender = params.get("gender");
-    const course = params.get("course");
+    const courseParam = params.get("course");
     const targetAgesRaw = params.get("targetAges") ?? params.get("compareAges");
 
     if (!isGender(gender)) {
       return { error: "gender が不正です。" };
     }
 
-    if (!isCourse(course)) {
+    const normalizedCourse =
+      courseParam === null || courseParam.trim() === ""
+        ? "ANY"
+        : isCourse(courseParam)
+          ? courseParam
+          : null;
+
+    if (normalizedCourse === null) {
       return { error: "course が不正です。" };
     }
 
@@ -115,7 +122,7 @@ export function ResultClient() {
     return {
       payload: {
         gender,
-        course,
+        course: normalizedCourse,
         season: null,
         targetAges,
       },
@@ -203,7 +210,10 @@ export function ResultClient() {
               <span className="font-medium">性別:</span> {GENDER_LABELS[data.gender]}
             </p>
             <p>
-              <span className="font-medium">検索対象:</span> {formatCourseStandardRecordLabel(data.course)}
+              <span className="font-medium">プール長:</span>{" "}
+              {data.course === "ANY"
+                ? "すべて（短水路・長水路・共通）"
+                : formatCourseStandardRecordLabel(data.course)}
             </p>
             {data.course === "ANY" ? (
               <p className="text-xs text-zinc-600 sm:col-span-2">{COURSE_ANY_DESCRIPTION}</p>
