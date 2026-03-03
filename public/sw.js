@@ -1,4 +1,4 @@
-const CACHE_NAME = "time-research-pwa-v2";
+const CACHE_NAME = "time-research-pwa-v3";
 const APP_SHELL = ["/", "/offline", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
