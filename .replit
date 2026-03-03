@@ -34,7 +34,7 @@ localPort = 5000
 externalPort = 80
 
 [deployment]
-build = ["sh", "-c", "npm run build"]
+build = ["sh", "-c", "npm run db:migrate && npm run db:seed && npm run build"]
 run = ["sh", "-c", "npm run start -- -H 0.0.0.0 -p $PORT"]
 deploymentTarget = "autoscale"
 publicDir = "public"

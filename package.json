@@ -4,14 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0 --webpack",
-    "build": "next build",
+    "build": "drizzle-kit migrate && node scripts/seed.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "npx tsx scripts/seed.ts",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",

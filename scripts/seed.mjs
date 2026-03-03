@@ -1,19 +1,22 @@
 import { readFileSync } from "fs";
-import { join } from "path";
-import { Pool } from "pg";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import pg from "pg";
 
-function toUpsertSql(seedSql: string): string {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+function toUpsertSql(seedSql) {
   return seedSql.replace(
     /INSERT INTO (\w+) \(([^)]+)\) VALUES \(([\s\S]*?)\) ON CONFLICT \(id\) DO NOTHING;/g,
-    (statement: string, table: string, columnList: string, values: string): string => {
-      const columns = columnList.split(",").map((column: string) => column.trim());
-      const updateColumns = columns.filter((column: string) => column !== "id");
+    (statement, table, columnList, values) => {
+      const columns = columnList.split(",").map((column) => column.trim());
+      const updateColumns = columns.filter((column) => column !== "id");
       if (updateColumns.length === 0) {
         return statement;
       }
-
       const updateSet = updateColumns
-        .map((column: string) => `${column} = EXCLUDED.${column}`)
+        .map((column) => `${column} = EXCLUDED.${column}`)
         .join(", ");
       return `INSERT INTO ${table} (${columnList}) VALUES (${values}) ON CONFLICT (id) DO UPDATE SET ${updateSet};`;
     },
@@ -27,7 +30,7 @@ async function main() {
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = new pg.Pool({ connectionString: databaseUrl });
 
   try {
     const seedPath = join(__dirname, "..", "drizzle", "seed.sql");
