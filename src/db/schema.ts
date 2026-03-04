@@ -94,47 +94,6 @@ export const standards = pgTable(
   ],
 );
 
-export const meetLikes = pgTable(
-  "meet_likes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    meetId: uuid("meet_id")
-      .notNull()
-      .references(() => meets.id, { onDelete: "cascade" }),
-    actorId: uuid("actor_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("meet_likes_unique_key").on(table.meetId, table.actorId),
-    index("meet_likes_meet_idx").on(table.meetId),
-  ],
-);
-
-export const eventLikes = pgTable(
-  "event_likes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    meetId: uuid("meet_id")
-      .notNull()
-      .references(() => meets.id, { onDelete: "cascade" }),
-    eventCode: text("event_code").notNull(),
-    actorId: uuid("actor_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("event_likes_unique_key").on(
-      table.meetId,
-      table.eventCode,
-      table.actorId,
-    ),
-    index("event_likes_meet_event_idx").on(table.meetId, table.eventCode),
-  ],
-);
-
 export type StandardLevel = (typeof standardLevelEnum.enumValues)[number];
 export type Course = (typeof courseEnum.enumValues)[number];
 export type Gender = (typeof genderEnum.enumValues)[number];

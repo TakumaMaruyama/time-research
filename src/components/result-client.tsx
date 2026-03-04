@@ -40,21 +40,6 @@ type SearchApiResponse = {
   results: Record<StandardLevel, SearchMeetResult[]>;
 };
 
-type LikeStatus = {
-  count: number;
-  liked: boolean;
-};
-
-type ReactionsSummaryResponse = {
-  meetLikes: Record<string, LikeStatus>;
-  eventLikes: Record<string, Record<string, LikeStatus>>;
-};
-
-type ReactionsSummaryRequest = {
-  meetIds: string[];
-  eventsByMeet: Record<string, string[]>;
-};
-
 const LEVEL_LABELS: Record<StandardLevel, string> = {
   national: "全国レベル",
   kyushu: "九州レベル",
@@ -64,11 +49,6 @@ const LEVEL_LABELS: Record<StandardLevel, string> = {
 const GENDER_LABELS: Record<"M" | "F", string> = {
   M: "男子",
   F: "女子",
-};
-
-const EMPTY_LIKE_STATUS: LikeStatus = {
-  count: 0,
-  liked: false,
 };
 
 function isCourse(value: string | null): value is Course {
@@ -105,30 +85,6 @@ function formatMeetDateRange(startDate: string | null, endDate: string | null): 
     return startDate;
   }
   return `${startDate} 〜 ${endDate}`;
-}
-
-function buildReactionsSummaryRequest(data: SearchApiResponse): ReactionsSummaryRequest {
-  const meetIds: string[] = [];
-  const eventsByMeet: Record<string, string[]> = {};
-
-  for (const level of STANDARD_LEVELS) {
-    for (const meet of data.results[level]) {
-      if (eventsByMeet[meet.meet_id]) {
-        continue;
-      }
-
-      meetIds.push(meet.meet_id);
-      eventsByMeet[meet.meet_id] = Array.from(
-        new Set(meet.items.map((item) => item.event_code)),
-      );
-    }
-  }
-
-  return { meetIds, eventsByMeet };
-}
-
-function getEventLikeKey(meetId: string, eventCode: string): string {
-  return `${meetId}|${eventCode}`;
 }
 
 export function ResultClient() {
@@ -176,18 +132,6 @@ export function ResultClient() {
   const [data, setData] = useState<SearchApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [reactionError, setReactionError] = useState<string | null>(null);
-  const [meetLikes, setMeetLikes] = useState<Record<string, LikeStatus>>({});
-  const [eventLikes, setEventLikes] = useState<Record<string, Record<string, LikeStatus>>>({});
-  const [pendingMeetLikes, setPendingMeetLikes] = useState<Record<string, boolean>>({});
-  const [pendingEventLikes, setPendingEventLikes] = useState<Record<string, boolean>>({});
-
-  const reactionsSummaryRequest = useMemo(() => {
-    if (!data) {
-      return null;
-    }
-    return buildReactionsSummaryRequest(data);
-  }, [data]);
 
   useEffect(() => {
     const payload = requestPayload.payload;
@@ -244,195 +188,6 @@ export function ResultClient() {
     };
   }, [requestPayload]);
 
-  useEffect(() => {
-    if (!reactionsSummaryRequest) {
-      setReactionError(null);
-      setMeetLikes({});
-      setEventLikes({});
-      setPendingMeetLikes({});
-      setPendingEventLikes({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchReactionSummary = async () => {
-      setReactionError(null);
-
-      try {
-        const response = await fetch("/api/reactions/summary", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(reactionsSummaryRequest),
-        });
-
-        const responseBody = (await response.json()) as
-          | ReactionsSummaryResponse
-          | { error?: string };
-
-        if (!response.ok) {
-          throw new Error(
-            "error" in responseBody && responseBody.error
-              ? responseBody.error
-              : "いいね情報の取得に失敗しました。",
-          );
-        }
-
-        if (!cancelled) {
-          setMeetLikes((responseBody as ReactionsSummaryResponse).meetLikes);
-          setEventLikes((responseBody as ReactionsSummaryResponse).eventLikes);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setMeetLikes({});
-          setEventLikes({});
-          setReactionError(
-            err instanceof Error ? err.message : "いいね情報の取得に失敗しました。",
-          );
-        }
-      }
-    };
-
-    void fetchReactionSummary();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reactionsSummaryRequest]);
-
-  const getMeetLikeStatus = (meetId: string): LikeStatus => {
-    return meetLikes[meetId] ?? EMPTY_LIKE_STATUS;
-  };
-
-  const getEventLikeStatus = (meetId: string, eventCode: string): LikeStatus => {
-    return eventLikes[meetId]?.[eventCode] ?? EMPTY_LIKE_STATUS;
-  };
-
-  const handleMeetLikeClick = async (
-    event: React.MouseEvent<HTMLButtonElement>,
-    meetId: string,
-  ): Promise<void> => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (pendingMeetLikes[meetId]) {
-      return;
-    }
-
-    setReactionError(null);
-    setPendingMeetLikes((prev) => ({ ...prev, [meetId]: true }));
-
-    try {
-      const response = await fetch("/api/reactions/meet/toggle", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ meetId }),
-      });
-
-      const responseBody = (await response.json()) as
-        | { meetId: string; liked: boolean; count: number }
-        | { error?: string };
-
-      if (!response.ok) {
-        throw new Error(
-          "error" in responseBody && responseBody.error
-            ? responseBody.error
-            : "大会いいねの更新に失敗しました。",
-        );
-      }
-
-      const body = responseBody as { meetId: string; liked: boolean; count: number };
-      setMeetLikes((prev) => ({
-        ...prev,
-        [body.meetId]: {
-          liked: body.liked,
-          count: body.count,
-        },
-      }));
-    } catch (err) {
-      setReactionError(
-        err instanceof Error ? err.message : "大会いいねの更新に失敗しました。",
-      );
-    } finally {
-      setPendingMeetLikes((prev) => {
-        const next = { ...prev };
-        delete next[meetId];
-        return next;
-      });
-    }
-  };
-
-  const handleEventLikeClick = async (
-    event: React.MouseEvent<HTMLButtonElement>,
-    meetId: string,
-    eventCode: string,
-  ): Promise<void> => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const eventLikeKey = getEventLikeKey(meetId, eventCode);
-    if (pendingEventLikes[eventLikeKey]) {
-      return;
-    }
-
-    setReactionError(null);
-    setPendingEventLikes((prev) => ({ ...prev, [eventLikeKey]: true }));
-
-    try {
-      const response = await fetch("/api/reactions/event/toggle", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ meetId, eventCode }),
-      });
-
-      const responseBody = (await response.json()) as
-        | { meetId: string; eventCode: string; liked: boolean; count: number }
-        | { error?: string };
-
-      if (!response.ok) {
-        throw new Error(
-          "error" in responseBody && responseBody.error
-            ? responseBody.error
-            : "種目いいねの更新に失敗しました。",
-        );
-      }
-
-      const body = responseBody as {
-        meetId: string;
-        eventCode: string;
-        liked: boolean;
-        count: number;
-      };
-
-      setEventLikes((prev) => ({
-        ...prev,
-        [body.meetId]: {
-          ...(prev[body.meetId] ?? {}),
-          [body.eventCode]: {
-            liked: body.liked,
-            count: body.count,
-          },
-        },
-      }));
-    } catch (err) {
-      setReactionError(
-        err instanceof Error ? err.message : "種目いいねの更新に失敗しました。",
-      );
-    } finally {
-      setPendingEventLikes((prev) => {
-        const next = { ...prev };
-        delete next[eventLikeKey];
-        return next;
-      });
-    }
-  };
-
   return (
     <>
       <div className="mb-4">
@@ -444,9 +199,6 @@ export function ResultClient() {
 
       {loading ? <p>検索中...</p> : null}
       {error ? <p className="rounded bg-red-50 p-3 text-red-700">{error}</p> : null}
-      {reactionError ? (
-        <p className="mt-3 rounded bg-amber-50 p-3 text-amber-800">{reactionError}</p>
-      ) : null}
 
       {data ? (
         <>
@@ -501,72 +253,41 @@ export function ResultClient() {
                       <p className="text-sm text-zinc-600">該当なし</p>
                     ) : (
                       <div className="space-y-5">
-                        {meets.map((meet) => {
-                          const eventCodes = Array.from(
-                            new Set(meet.items.map((item) => item.event_code)),
-                          );
-                          const meetLikeStatus = getMeetLikeStatus(meet.meet_id);
-                          const meetLikePending = Boolean(pendingMeetLikes[meet.meet_id]);
-
-                          return (
-                            <details key={meet.meet_id} className="rounded border border-zinc-200">
-                              <summary className="cursor-pointer list-none p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <h3 className="text-base font-semibold">{meet.meet_name}</h3>
-                                  <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                                    {formatCourseStandardRecordLabel(meet.meet_course)}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs text-zinc-600">
-                                  標準記録年度: {meet.meet_season} / 大会日付:{" "}
-                                  {formatMeetDateRange(meet.meet_date, meet.meet_date_end)} / 種目数:{" "}
-                                  {eventCodes.length}
+                        {meets.map((meet) => (
+                          <details key={meet.meet_id} className="rounded border border-zinc-200">
+                            <summary className="cursor-pointer list-none p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-base font-semibold">{meet.meet_name}</h3>
+                                <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+                                  {formatCourseStandardRecordLabel(meet.meet_course)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-zinc-600">
+                                標準記録年度: {meet.meet_season} / 大会日付: {formatMeetDateRange(meet.meet_date, meet.meet_date_end)} / 種目数:{" "}
+                                {new Set(meet.items.map((item) => item.event_code)).size}
+                              </p>
+                            </summary>
+                            <div className="border-t border-zinc-200 p-3">
+                              {meet.meet_metadata ? (
+                                <p className="mb-3 mt-1 break-all text-xs text-zinc-600">
+                                  metadata: {JSON.stringify(meet.meet_metadata)}
                                 </p>
-                                <div className="mt-2 inline-flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      void handleMeetLikeClick(event, meet.meet_id);
-                                    }}
-                                    disabled={meetLikePending}
-                                    className={`rounded border px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                                      meetLikeStatus.liked
-                                        ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                                        : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100"
-                                    }`}
-                                  >
-                                    {meetLikePending
-                                      ? "更新中..."
-                                      : meetLikeStatus.liked
-                                        ? "いいね済み"
-                                        : "いいね"}
-                                  </button>
-                                  <span className="text-xs text-zinc-600">
-                                    {meetLikeStatus.count}件
-                                  </span>
-                                </div>
-                              </summary>
-                              <div className="border-t border-zinc-200 p-3">
-                                {meet.meet_metadata ? (
-                                  <p className="mb-3 mt-1 break-all text-xs text-zinc-600">
-                                    metadata: {JSON.stringify(meet.meet_metadata)}
-                                  </p>
-                                ) : null}
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full text-sm">
-                                    <thead>
-                                      <tr className="border-b border-zinc-200 text-left">
-                                        <th className="py-2 pr-3">種目</th>
-                                        <th className="py-2 pr-3">いいね</th>
-                                        {data.targetAges.map((targetAge) => (
-                                          <th key={`${meet.meet_id}-age-${targetAge}`} className="py-2 pr-3">
-                                            {formatCompareAgeLabel(targetAge)}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {eventCodes.map((eventCode) => {
+                              ) : null}
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-zinc-200 text-left">
+                                      <th className="py-2 pr-3">種目</th>
+                                      {data.targetAges.map((targetAge) => (
+                                        <th key={`${meet.meet_id}-age-${targetAge}`} className="py-2 pr-3">
+                                          {formatCompareAgeLabel(targetAge)}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {Array.from(new Set(meet.items.map((item) => item.event_code))).map(
+                                      (eventCode) => {
                                         const byAge = new Map<number, string>();
                                         for (const item of meet.items) {
                                           if (item.event_code === eventCode) {
@@ -574,55 +295,12 @@ export function ResultClient() {
                                           }
                                         }
 
-                                        const eventLikeKey = getEventLikeKey(
-                                          meet.meet_id,
-                                          eventCode,
-                                        );
-                                        const eventLikeStatus = getEventLikeStatus(
-                                          meet.meet_id,
-                                          eventCode,
-                                        );
-                                        const eventLikePending = Boolean(
-                                          pendingEventLikes[eventLikeKey],
-                                        );
-
                                         return (
                                           <tr
                                             key={`${meet.meet_id}-${eventCode}`}
                                             className="border-b border-zinc-100"
                                           >
-                                            <td className="py-2 pr-3">
-                                              {formatEventCodeLabel(eventCode)}
-                                            </td>
-                                            <td className="py-2 pr-3">
-                                              <div className="inline-flex items-center gap-2">
-                                                <button
-                                                  type="button"
-                                                  onClick={(event) => {
-                                                    void handleEventLikeClick(
-                                                      event,
-                                                      meet.meet_id,
-                                                      eventCode,
-                                                    );
-                                                  }}
-                                                  disabled={eventLikePending}
-                                                  className={`rounded border px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                                                    eventLikeStatus.liked
-                                                      ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                                                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100"
-                                                  }`}
-                                                >
-                                                  {eventLikePending
-                                                    ? "更新中..."
-                                                    : eventLikeStatus.liked
-                                                      ? "いいね済み"
-                                                      : "いいね"}
-                                                </button>
-                                                <span className="text-xs text-zinc-600">
-                                                  {eventLikeStatus.count}
-                                                </span>
-                                              </div>
-                                            </td>
+                                            <td className="py-2 pr-3">{formatEventCodeLabel(eventCode)}</td>
                                             {data.targetAges.map((targetAge) => (
                                               <td
                                                 key={`${meet.meet_id}-${eventCode}-${targetAge}`}
@@ -633,14 +311,14 @@ export function ResultClient() {
                                             ))}
                                           </tr>
                                         );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
+                                      },
+                                    )}
+                                  </tbody>
+                                </table>
                               </div>
-                            </details>
-                          );
-                        })}
+                            </div>
+                          </details>
+                        ))}
                       </div>
                     )}
                   </div>
