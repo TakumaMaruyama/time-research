@@ -94,6 +94,22 @@ export const standards = pgTable(
   ],
 );
 
+export const cheerClicks = pgTable(
+  "cheer_clicks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userHash: text("user_hash").notNull(),
+    cheerDate: date("cheer_date", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("cheer_clicks_user_date_unique").on(table.userHash, table.cheerDate),
+    index("cheer_clicks_date_idx").on(table.cheerDate),
+  ],
+);
+
 export type StandardLevel = (typeof standardLevelEnum.enumValues)[number];
 export type Course = (typeof courseEnum.enumValues)[number];
 export type Gender = (typeof genderEnum.enumValues)[number];

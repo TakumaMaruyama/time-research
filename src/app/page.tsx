@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CheerButton } from "@/components/cheer-button";
 import { HomeSearchMode } from "@/components/home-search-mode";
 
 export default function HomePage() {
@@ -9,7 +10,10 @@ export default function HomePage() {
       <p className="mb-6 text-sm text-zinc-700">
         標準記録検索と資格級確認を切り替えて利用できます。
       </p>
-      <HomeSearchMode />
+      <div className="space-y-4">
+        <CheerButton />
+        <HomeSearchMode />
+      </div>
       <Link
         href="/admin/import"
         className="fixed bottom-4 right-4 text-xs text-zinc-400 transition-colors hover:text-zinc-600"

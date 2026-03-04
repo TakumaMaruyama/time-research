@@ -2,6 +2,7 @@
 
 Next.js (App Router) + TypeScript + Tailwind + Drizzle + PostgreSQL で作成した、
 全国レベル / 九州レベル / 県レベル（鹿児島）の標準記録検索アプリです。
+トップページには「頑張ろう」ボタンがあり、利用者ごとに1日1回まで押せて、全体累計を表示します。
 
 ## 技術スタック
 
@@ -39,6 +40,8 @@ npm run dev
 ## API
 
 - `POST /api/search`
+- `GET /api/cheer`
+- `POST /api/cheer`
 - `POST /api/admin/login`
 - `GET /api/admin/session`
 - `POST /api/admin/preview`
